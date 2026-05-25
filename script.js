@@ -68,23 +68,33 @@ function showGame() {
    LOGOUT
 ------------------------------ */
 
-function logout() {
-    sessionId = null;
-    accountId = null;
-    selectedCharacter = null;
-    currentInstanceId = null;
-
-    if (ws) {
-        ws.close();
-        ws = null;
-    }
+async function logout() {
 
     if (chatWS) {
         chatWS.close();
         chatWS = null;
     }
 
+    if (ws) {
+        ws.close();
+        ws = null;
+    }
+
+    await leaveInstance(); // 👈 IMPORTANT
+
+    sessionId = null;
+    accountId = null;
+    selectedCharacter = null;
+    currentInstanceId = null;
+    localStorage.clear();
     showLogin();
+}
+
+function saveSessionState() {
+    if (sessionId) localStorage.setItem("sessionId", sessionId);
+    if (accountId) localStorage.setItem("accountId", accountId);
+    if (selectedCharacter) localStorage.setItem("selectedCharacter", JSON.stringify(selectedCharacter));
+    if (currentInstanceId) localStorage.setItem("currentInstanceId", currentInstanceId);
 }
 
 /* ------------------------------
@@ -141,6 +151,7 @@ async function login() {
 
     connectWebSocket();
     loadCharacters();
+    saveSessionState();
 }
 
 /* ------------------------------
@@ -279,6 +290,9 @@ function selectCharacter(character) {
     selectedCharacter = character;
 
     localStorage.setItem("selectedCharacterId", character.id);
+    localStorage.setItem("selectedCharacter", JSON.stringify(character));
+
+    saveSessionState();
 
     loadInstances();
 }
@@ -336,7 +350,8 @@ async function joinInstance(id) {
     }
 
     currentInstanceId = id;
-
+    localStorage.setItem("currentInstanceId", id);
+    saveSessionState();
     showGame();
 
     openChatWebSocket(id);
@@ -386,7 +401,8 @@ function returnToCharacterSelect() {
         chatWS.close();
         chatWS = null;
     }
-
+    leaveInstance();
+    localStorage.removeItem("currentInstanceId");
     loadCharacters();
 }
 async function loadCharacterStats(characterId) {
@@ -413,6 +429,27 @@ async function loadCharacterStats(characterId) {
     document.getElementById("hudInt").textContent = c.intelligence;
 }
 
+async function leaveInstance() {
+    if (!currentInstanceId) return;
+
+    try {
+        await fetch(`${GAME}/leave_instance`, {
+            method: "POST",
+            headers: {
+                Authorization: "Session " + sessionId,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                instance_id: currentInstanceId
+            })
+        });
+    } catch (e) {
+        console.warn("Leave instance failed:", e);
+    }
+
+    currentInstanceId = null;
+}
+
 /* ------------------------------
    WS
 ------------------------------ */
@@ -424,3 +461,30 @@ function connectWebSocket() {
 }
 
 showLogin();
+window.addEventListener("load", async () => {
+
+    sessionId = localStorage.getItem("sessionId");
+    accountId = localStorage.getItem("accountId");
+
+    const savedChar = localStorage.getItem("selectedCharacter");
+    if (savedChar) selectedCharacter = JSON.parse(savedChar);
+
+    const savedInstance = localStorage.getItem("currentInstanceId");
+    if (savedInstance) currentInstanceId = parseInt(savedInstance);
+
+    if (sessionId) {
+
+        connectWebSocket();
+
+        if (currentInstanceId && selectedCharacter) {
+            showGame();
+            openChatWebSocket(currentInstanceId);
+            loadCharacterStats(selectedCharacter.id);
+        } else {
+            loadCharacters();
+        }
+
+    } else {
+        showLogin();
+    }
+});
