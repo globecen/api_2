@@ -1,0 +1,102 @@
+from fastapi import FastAPI, HTTPException, Header
+from pydantic import BaseModel
+from passlib.context import CryptContext
+import time, secrets
+from fastapi.middleware.cors import CORSMiddleware
+from AuthDatabase import AuthDatabase
+import redis
+
+# -----------------------------
+# INITIALISATION
+# -----------------------------
+app = FastAPI()
+db = AuthDatabase("auth.db")
+
+# Redis
+r = redis.Redis(host="127.0.0.1", port=6379, decode_responses=True)
+
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+SESSION_DURATION = 86400  # 24h
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# -----------------------------
+# MODELES
+# -----------------------------
+class Register(BaseModel):
+    username: str
+    password: str
+
+class Login(BaseModel):
+    username: str
+    password: str
+
+# -----------------------------
+# OUTILS
+# -----------------------------
+def hash_password(p): 
+    return pwd_context.hash(p)
+
+def verify_password(p, h): 
+    return pwd_context.verify(p, h)
+
+def create_session(account_id: int):
+    session_id = secrets.token_hex(32)
+    expires = int(time.time()) + SESSION_DURATION
+
+    # Stockage Redis
+    r.hset(f"session:{session_id}", mapping={
+        "account_id": account_id,
+        "expires_at": expires
+    })
+    r.expire(f"session:{session_id}", SESSION_DURATION)
+
+    return session_id, expires
+
+# -----------------------------
+# ENDPOINTS
+# -----------------------------
+@app.post("/register")
+def register(payload: Register):
+    existing = db.get_account_by_username(payload.username)
+
+    if existing:
+        if verify_password(payload.password, existing[2]):
+            raise HTTPException(400, "Compte déjà existant.")
+        else:
+            raise HTTPException(400, "Nom déjà pris.")
+
+    hashed = hash_password(payload.password)
+    account_id = db.create_account(payload.username, hashed)
+    return {"success": True, "account_id": account_id}
+
+@app.post("/login")
+def login(payload: Login):
+    row = db.get_account_by_username(payload.username)
+
+    if not row or not verify_password(payload.password, row[2]):
+        raise HTTPException(400, "Identifiants invalides.")
+
+    session_id, expires = create_session(row[0])
+    return {"success": True, "session_id": session_id, "expires_at": expires}
+
+@app.get("/validate_session")
+def validate_session(authorization: str = Header(None)):
+    if not authorization or not authorization.startswith("Session "):
+        raise HTTPException(401, "Session invalide.")
+
+    session_id = authorization.split(" ")[1]
+
+    data = r.hgetall(f"session:{session_id}")
+    if not data:
+        raise HTTPException(401, "Session invalide.")
+
+    if int(data["expires_at"]) < int(time.time()):
+        raise HTTPException(401, "Session expirée.")
+
+    return {"success": True, "account_id": int(data["account_id"])}

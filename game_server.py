@@ -1,0 +1,413 @@
+from fastapi import Body, FastAPI, HTTPException, Header, WebSocket, WebSocketDisconnect, Depends
+from pydantic import BaseModel
+from fastapi.middleware.cors import CORSMiddleware
+import requests, json
+import redis
+
+from GameDatabase import GameDatabase
+from anti_cheat import AntiCheat
+
+AUTH_SERVER = "http://127.0.0.1:3001"
+
+app = FastAPI()
+
+db = GameDatabase("game.db")
+anti_cheat = AntiCheat()
+
+# Redis
+r = redis.Redis(host="127.0.0.1", port=6379, decode_responses=True)
+chat_connections: dict[int, list[WebSocket]] = {}
+
+MAX_PLAYERS = 10
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# -----------------------------
+# MODELES / CONSTANTES
+# -----------------------------
+class CharacterCreate(BaseModel):
+    name: str
+    char_class: str
+    appearance: dict
+
+VALID_CLASSES = ["Guerrier", "Mage", "Archer", "Nécromancien"]
+
+# -----------------------------
+# VALIDATION DE SESSION
+# -----------------------------
+def get_current_account(authorization: str = Header(None)):
+    if not authorization:
+        raise HTTPException(401, "Session manquante.")
+
+    r2 = requests.get(
+        f"{AUTH_SERVER}/validate_session",
+        headers={"Authorization": authorization}
+    )
+
+    if r2.status_code != 200:
+        raise HTTPException(401, "Session invalide.")
+
+    return r2.json()["account_id"]
+
+# -----------------------------
+# WEBSOCKETS INSTANCES
+# -----------------------------
+websocket_clients = set()
+
+async def broadcast_instances():
+    data = {"instances": get_status()}
+    dead = []
+
+    for ws in websocket_clients:
+        try:
+            await ws.send_text(json.dumps(data))
+        except:
+            dead.append(ws)
+
+    for ws in dead:
+        websocket_clients.remove(ws)
+
+@app.websocket("/ws/instances")
+async def ws_instances(ws: WebSocket):
+    await ws.accept()
+    websocket_clients.add(ws)
+
+    # Envoi initial
+    await ws.send_text(json.dumps({"instances": get_status()}))
+
+    try:
+        while True:
+            msg = await ws.receive_text()
+
+            # Réponse au ping
+            if msg.startswith("ping:"):
+                timestamp = msg.split(":")[1]
+                await ws.send_text(json.dumps({"pong": timestamp}))
+                continue
+
+    except WebSocketDisconnect:
+        websocket_clients.remove(ws)
+
+# -----------------------------
+# INSTANCES VIA REDIS
+# -----------------------------
+def assign_player(account_id: int):
+    # Vérifier si déjà dans une instance
+    inst = r.get(f"player:{account_id}")
+    if inst:
+        return int(inst)
+
+    # Chercher une instance non pleine
+    for inst_id in r.smembers("instances"):
+        if r.scard(f"instance:{inst_id}:players") < MAX_PLAYERS:
+            r.sadd(f"instance:{inst_id}:players", account_id)
+            r.set(f"player:{account_id}", inst_id)
+            return int(inst_id)
+
+    # Sinon créer une nouvelle instance
+    new_id = r.incr("instance_counter")
+    r.sadd("instances", new_id)
+    r.sadd(f"instance:{new_id}:players", account_id)
+    r.set(f"player:{account_id}", new_id)
+    return new_id
+
+def remove_player(account_id: int):
+    inst = r.get(f"player:{account_id}")
+    if not inst:
+        return None
+
+    r.srem(f"instance:{inst}:players", account_id)
+    r.delete(f"player:{account_id}")
+    return int(inst)
+
+def get_status():
+    instances = []
+    for inst_id in r.smembers("instances"):
+        players = list(r.smembers(f"instance:{inst_id}:players"))
+
+        # Récupérer les noms des personnages
+        player_infos = []
+        for p in players:
+            char = db.db.execute(
+                "SELECT name FROM characters WHERE account_id = ? LIMIT 1",
+                [p]
+            ).fetchone()
+
+            player_infos.append({
+                "account_id": int(p),
+                "name": char[0] if char else "Inconnu"
+            })
+
+        instances.append({
+            "instance_id": int(inst_id),
+            "players": len(players),
+            "player_ids": player_infos
+        })
+
+    return instances
+
+# -----------------------------
+# ENDPOINTS JOUEURS / INSTANCES
+# -----------------------------
+@app.post("/join_instance")
+async def join_instance(account_id: int = Depends(get_current_account)):
+    inst = assign_player(account_id)
+    await broadcast_instances()
+    return {"success": True, "instance_id": inst}
+
+@app.post("/leave_instance")
+async def leave_instance(account_id: int = Depends(get_current_account)):
+    inst = remove_player(account_id)
+    await broadcast_instances()
+    return {"success": True, "instance_id": inst}
+
+@app.get("/instances")
+def list_instances():
+    return {"success": True, "instances": get_status()}
+
+@app.get("/instances_list")
+def instances_list():
+    return {"success": True, "instances": get_status()}
+
+# -----------------------------
+# PERSONNAGES
+# -----------------------------
+@app.get("/characters_list")
+def characters_list(account_id: int = Depends(get_current_account)):
+    chars = db.list_characters_for_account(account_id)
+
+    return {
+        "success": True,
+        "characters": [
+            {
+                "id": c[0],
+                "name": c[1],
+                "level": c[2],
+                "xp": c[3],
+                "class": c[4],
+                "appearance": json.loads(c[5])
+            }
+            for c in chars
+        ]
+    }
+
+@app.post("/characters")
+def create_character(payload: CharacterCreate, account_id: int = Depends(get_current_account)):
+    name = payload.name.strip()
+
+    if len(name) < 3:
+        raise HTTPException(400, "Nom trop court")
+
+    # Vérifier si le nom existe déjà pour ce compte
+    existing = db.db.execute(
+        "SELECT 1 FROM characters WHERE account_id = ? AND LOWER(name) = LOWER(?)",
+        [account_id, name]
+    ).fetchone()
+
+    if existing:
+        raise HTTPException(400, "Un personnage porte déjà ce nom.")
+
+    if payload.char_class not in VALID_CLASSES:
+        raise HTTPException(400, "Classe invalide")
+
+    char = db.create_character(
+        account_id,
+        name,
+        payload.char_class,
+        payload.appearance
+    )
+
+    return {
+        "success": True,
+        "character": {
+            "id": char[0],
+            "account_id": char[1],
+            "name": char[2],
+            "level": char[3],
+            "xp": char[4],
+            "class": char[5],
+            "appearance": json.loads(char[6])
+        }
+    }
+
+# -----------------------------
+# ADMIN
+# -----------------------------
+@app.post("/admin/create_instance")
+async def create_instance():
+    new_id = r.incr("instance_counter")
+    r.sadd("instances", new_id)
+    await broadcast_instances()
+    return {"success": True, "instance_id": new_id}
+
+@app.post("/admin/clear_instance/{instance_id}")
+async def clear_instance(instance_id: int):
+    players = r.smembers(f"instance:{instance_id}:players")
+
+    for p in players:
+        r.delete(f"player:{p}")
+
+    r.delete(f"instance:{instance_id}:players")
+
+    await broadcast_instances()
+    return {"success": True}
+
+@app.post("/admin/delete_instance/{instance_id}")
+async def delete_instance(instance_id: int):
+    r.srem("instances", instance_id)
+    r.delete(f"instance:{instance_id}:players")
+    await broadcast_instances()
+    return {"success": True}
+
+# ============================
+# ADMIN : Voir personnage
+# ============================
+@app.get("/admin/character_info/{account_id}")
+def admin_character_info(account_id: int):
+    char = db.db.execute(
+        """
+        SELECT name, class, appearance, level
+        FROM characters
+        WHERE account_id = ?
+        LIMIT 1
+        """,
+        [account_id]
+    ).fetchone()
+
+    if not char:
+        raise HTTPException(404, "Aucun personnage trouvé pour cet utilisateur.")
+
+    return {
+        "success": True,
+        "name": char[0],
+        "class": char[1],
+        "appearance": json.loads(char[2]),
+        "level": char[3]
+    }
+
+
+# ============================
+# ADMIN : Kick joueur
+# ============================
+@app.post("/admin/kick_player/{instance_id}/{account_id}")
+async def admin_kick_player(instance_id: int, account_id: int):
+    r.srem(f"instance:{instance_id}:players", account_id)
+    r.delete(f"player:{account_id}")
+    await broadcast_instances()
+    return {"success": True}
+
+
+# ============================
+# ADMIN : Téléporter joueur
+# ============================
+@app.post("/admin/teleport_player/{instance_id}/{account_id}")
+async def admin_teleport_player(instance_id: int, account_id: int):
+    # Retirer de l'instance actuelle
+    r.srem(f"instance:{instance_id}:players", account_id)
+
+    # Réassigner automatiquement à une autre instance
+    new_id = assign_player(account_id)
+
+    await broadcast_instances()
+    return {"success": True, "new_instance": new_id}
+
+@app.websocket("/ws/chat/{instance_id}")
+async def chat_ws(websocket: WebSocket, instance_id: int):
+    await websocket.accept()
+
+    if instance_id not in chat_connections:
+        chat_connections[instance_id] = []
+    chat_connections[instance_id].append(websocket)
+
+    # Envoi de l'historique
+    rows = db.db.execute("""
+        SELECT sender_type, sender_id, content
+        FROM chat_messages
+        WHERE instance_id = ?
+        ORDER BY id ASC
+        LIMIT 50
+    """, [instance_id]).fetchall()
+
+    for sender_type, sender_id, content in rows:
+        prefix = "[ADMIN]" if sender_type == "admin" else "[PLAYER]"
+        try:
+            await websocket.send_text(f"{prefix} {content}")
+        except:
+            pass
+
+    try:
+        while True:
+            try:
+                msg = await websocket.receive_text()
+            except WebSocketDisconnect:
+                break
+            except:
+                continue
+
+            msg = msg.strip()
+            if not msg:
+                continue
+
+            # 🔥 DuckDB : générer ID manuellement
+            next_id = db.db.execute(
+                "SELECT COALESCE(MAX(id), 0) + 1 FROM chat_messages"
+            ).fetchone()[0]
+
+            # Stockage DB
+            db.db.execute("""
+                INSERT INTO chat_messages (id, instance_id, sender_type, sender_id, content)
+                VALUES (?, ?, 'player', NULL, ?)
+            """, [next_id, instance_id, msg])
+
+            # Envoi à l'expéditeur
+            try:
+                await websocket.send_text(f"[YOU] {msg}")
+            except:
+                pass
+
+            # Envoi aux autres
+            for ws in list(chat_connections.get(instance_id, [])):
+                if ws is not websocket:
+                    try:
+                        await ws.send_text(f"[PLAYER] {msg}")
+                    except:
+                        chat_connections[instance_id].remove(ws)
+
+    finally:
+        chat_connections[instance_id].remove(websocket)
+
+@app.post("/admin/chat/{instance_id}")
+async def admin_send_chat(instance_id: int, payload: dict = Body(...)):
+    message = payload.get("message", "").strip()
+    if not message:
+        raise HTTPException(400, "Message vide")
+
+    # 🔥 DuckDB : générer ID manuellement
+    next_id = db.db.execute(
+        "SELECT COALESCE(MAX(id), 0) + 1 FROM chat_messages"
+    ).fetchone()[0]
+
+    # Stockage DB
+    db.db.execute("""
+        INSERT INTO chat_messages (id, instance_id, sender_type, sender_id, content)
+        VALUES (?, ?, 'admin', NULL, ?)
+    """, [next_id, instance_id, message])
+
+    # Cache Redis (optionnel)
+    r.rpush(f"chat:{instance_id}", message)
+
+    text = f"[ADMIN] {message}"
+
+    # Diffusion temps réel
+    for ws in list(chat_connections.get(instance_id, [])):
+        try:
+            await ws.send_text(text)
+        except:
+            chat_connections[instance_id].remove(ws)
+
+    return {"success": True}

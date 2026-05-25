@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard Instances - Admin</title>
+<style>
+    body {
+        font-family: Arial, sans-serif;
+        background: #1e1e1e;
+        color: #eee;
+        margin: 0;
+        padding: 20px;
+    }
+    h1 {
+        color: #4fc3f7;
+    }
+    .instance {
+        background: #2b2b2b;
+        padding: 15px;
+        margin-bottom: 15px;
+        border-radius: 8px;
+    }
+    .bar {
+        height: 20px;
+        background: #4fc3f7;
+        margin-top: 5px;
+        border-radius: 4px;
+    }
+    button {
+        background: #4fc3f7;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 5px;
+        cursor: pointer;
+        margin-right: 5px;
+        margin-top: 10px;
+    }
+    button:hover {
+        background: #81d4fa;
+    }
+
+    /* Sprite */
+    .spriteBox {
+        width: 80px;
+        height: 80px;
+        position: relative;
+        margin: auto;
+        animation: float 1.2s ease-in-out infinite alternate;
+    }
+    @keyframes float {
+        from { transform: translateY(2px); }
+        to   { transform: translateY(-4px); }
+    }
+    .body {
+        position: absolute;
+        bottom: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 26px;
+        height: 36px;
+        border-radius: 8px;
+        background: var(--color);
+        box-shadow: 0 0 8px var(--color);
+    }
+    .head {
+        position: absolute;
+        bottom: 46px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: #f5e0c8;
+    }
+    .weapon, .staff, .bow, .aura {
+        position: absolute;
+    }
+    .warrior .weapon {
+        width: 6px;
+        height: 30px;
+        background: #c0c0c0;
+        right: 8px;
+        bottom: 14px;
+        border-radius: 3px;
+    }
+    .mage .staff {
+        width: 6px;
+        height: 34px;
+        background: #8b5a2b;
+        right: 10px;
+        bottom: 12px;
+        border-radius: 3px;
+    }
+    .archer .bow {
+        width: 4px;
+        height: 34px;
+        border: 2px solid #c28f4c;
+        right: 6px;
+        bottom: 12px;
+        border-radius: 20px;
+    }
+    .necromancer .aura {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        left: 50%;
+        bottom: 6px;
+        transform: translateX(-50%);
+        background: radial-gradient(circle, rgba(150,0,200,0.5), transparent);
+    }
+
+    /* Modal */
+    #modal {
+        position: fixed;
+        top: 0; left: 0;
+        width: 100%; height: 100%;
+        background: rgba(0,0,0,0.7);
+        display: none;
+        justify-content: center;
+        align-items: center;
+    }
+    #modalContent {
+        background: #2b2b2b;
+        padding: 20px;
+        border-radius: 10px;
+        width: 300px;
+        text-align: center;
+    }
+</style>
+</head>
+<body>
+
+<h1>Dashboard Admin – Instances</h1>
+<p>Actualisation en temps réel via WebSocket</p>
+
+<button onclick="createInstance()">Créer une nouvelle instance</button>
+
+<div id="instances"></div>
+
+<!-- MODAL -->
+<div id="modal">
+    <div id="modalContent">
+        <h2 id="modalName"></h2>
+        <div id="modalSprite"></div>
+        <p id="modalClass"></p>
+        <p id="modalLevel"></p>
+        <button onclick="closeModal()">Fermer</button>
+    </div>
+</div>
+
+<script>
+const API = "http://127.0.0.1:3000";
+const ws = new WebSocket("ws://127.0.0.1:3000/ws/instances");
+
+let pingMs = 0;
+
+function pingColor(ms) {
+    if (ms < 50) return "lime";
+    if (ms < 200) return "orange";
+    return "red";
+}
+
+setInterval(() => {
+    ws.send("ping:" + performance.now());
+}, 1000);
+
+ws.onmessage = (event) => {
+    const data = JSON.parse(event.data);
+
+    if (data.pong) {
+        pingMs = Math.round(performance.now() - parseFloat(data.pong));
+        return;
+    }
+
+    const instances = data.instances;
+    const maxPlayers = 10;
+    const container = document.getElementById("instances");
+
+    document.querySelectorAll(".instance").forEach(div => {
+        div.dataset.updated = "no";
+    });
+
+    instances.forEach(inst => {
+        let div = document.getElementById("instance-" + inst.instance_id);
+
+        if (!div) {
+            div = document.createElement("div");
+            div.className = "instance";
+            div.id = "instance-" + inst.instance_id;
+            container.appendChild(div);
+        }
+
+        const percent = (inst.players / maxPlayers) * 100;
+
+        div.innerHTML = `
+            <h2>Instance ${inst.instance_id}</h2>
+
+            <p>Ping : 
+                <strong style="color:${pingColor(pingMs)}">
+                    ${pingMs} ms
+                </strong>
+            </p>
+
+            <p>Joueurs : <strong>${inst.players}</strong> / ${maxPlayers}</p>
+            <div class="bar" style="width:${percent}%;"></div>
+
+            <p>Joueurs :</p>
+            <ul>
+                ${inst.player_ids.map(p => `
+                    <li>
+                        <strong>${p.name}</strong> (ID ${p.account_id})
+                        <button onclick="viewCharacter(${p.account_id})">Voir</button>
+                        <button onclick="kickPlayer(${inst.instance_id}, ${p.account_id})">Kick</button>
+                    </li>
+                `).join("")}
+            </ul>
+
+            <button onclick="clearInstance(${inst.instance_id})">Vider l'instance</button>
+            <button onclick="deleteInstance(${inst.instance_id})">Supprimer l'instance</button>
+        `;
+
+        div.dataset.updated = "yes";
+    });
+
+    document.querySelectorAll(".instance").forEach(div => {
+        if (div.dataset.updated === "no") div.remove();
+    });
+};
+
+async function viewCharacter(accountId) {
+    const res = await fetch(`${API}/admin/character_info/${accountId}`);
+    const data = await res.json();
+
+    document.getElementById("modalName").textContent = data.name;
+    document.getElementById("modalClass").textContent = "Classe : " + data.class;
+    document.getElementById("modalLevel").textContent = "Niveau : " + data.level;
+
+    const color = data.appearance.color;
+
+    document.getElementById("modalSprite").innerHTML = `
+        <div class="spriteBox ${data.class.toLowerCase()}">
+            <div class="aura"></div>
+            <div class="body" style="--color:${color}"></div>
+            <div class="head"></div>
+            <div class="weapon"></div>
+            <div class="staff"></div>
+            <div class="bow"></div>
+        </div>
+    `;
+
+    document.getElementById("modal").style.display = "flex";
+}
+
+function closeModal() {
+    document.getElementById("modal").style.display = "none";
+}
+
+async function teleportPlayer(instanceId, accountId) {
+    await fetch(`${API}/admin/teleport_player/${instanceId}/${accountId}`, { method: "POST" });
+}
+
+async function kickPlayer(instanceId, accountId) {
+    await fetch(`${API}/admin/kick_player/${instanceId}/${accountId}`, { method: "POST" });
+}
+
+async function createInstance() {
+    await fetch(`${API}/admin/create_instance`, { method: "POST" });
+}
+
+async function clearInstance(id) {
+    await fetch(`${API}/admin/clear_instance/${id}`, { method: "POST" });
+}
+
+async function deleteInstance(id) {
+    await fetch(`${API}/admin/delete_instance/${id}`, { method: "POST" });
+}
+</script>
+
+</body>
+</html>

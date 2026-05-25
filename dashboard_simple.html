@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Instances</title>
+</head>
+<body>
+
+<h1>Instances</h1>
+<pre id="output">Chargement...</pre>
+
+<script>
+async function refresh() {
+    try {
+        const res = await fetch("http://127.0.0.1:3000/instances");
+        const data = await res.json();
+
+        let text = "";
+
+        data.instances.forEach(inst => {
+            text += `Instance ${inst.instance_id} — ${inst.players} joueurs\n`;
+        });
+
+        document.getElementById("output").textContent = text || "Aucune instance";
+    }
+    catch (e) {
+        document.getElementById("output").textContent = "Erreur : " + e;
+    }
+}
+
+setInterval(refresh, 2000);
+refresh();
+</script>
+
+</body>
+</html>

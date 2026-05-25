@@ -1,0 +1,230 @@
+:root {
+    --char-color: #ff0000;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #1e1e1e;
+    color: #eee;
+    margin: 0;
+    padding: 20px;
+}
+
+h1,
+h2 {
+    color: #4fc3f7;
+}
+
+.panel {
+    background: #2b2b2b;
+    padding: 20px;
+    border-radius: 8px;
+    max-width: 450px;
+    margin-bottom: 20px;
+}
+
+input,
+select,
+button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 10px;
+    border-radius: 5px;
+    border: none;
+}
+
+input,
+select {
+    background: #444;
+    color: #fff;
+}
+
+button {
+    background: #4fc3f7;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #81d4fa;
+}
+
+.instanceBox {
+    background: #333;
+    padding: 10px;
+    border-radius: 6px;
+    margin-top: 10px;
+}
+
+/* Aperçu visuel animé du personnage */
+#previewBox {
+    margin-top: 10px;
+    padding: 10px;
+    background: #1b1b1b;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.charSprite {
+    width: 80px;
+    height: 80px;
+    position: relative;
+    border-radius: 10px;
+    background: radial-gradient(circle at 50% 80%, rgba(0, 0, 0, 0.8), transparent);
+    animation: float 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes float {
+    from {
+        transform: translateY(2px);
+    }
+
+    to {
+        transform: translateY(-4px);
+    }
+}
+
+.charBody {
+    position: absolute;
+    bottom: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 26px;
+    height: 36px;
+    border-radius: 8px;
+    background: var(--char-color);
+    box-shadow: 0 0 8px var(--char-color);
+}
+
+.charHead {
+    position: absolute;
+    bottom: 46px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #f5e0c8;
+}
+
+.charWeapon,
+.charStaff,
+.charBow,
+.charAura {
+    position: absolute;
+}
+
+/* Guerrier : épée */
+.class-guerrier .charWeapon {
+    width: 6px;
+    height: 30px;
+    background: #c0c0c0;
+    right: 8px;
+    bottom: 14px;
+    border-radius: 3px;
+    box-shadow: 0 0 4px #c0c0c0;
+}
+
+/* Mage : bâton */
+.class-mage .charStaff {
+    width: 6px;
+    height: 34px;
+    background: #8b5a2b;
+    right: 10px;
+    bottom: 12px;
+    border-radius: 3px;
+    box-shadow: 0 0 4px #8b5a2b;
+}
+
+.class-mage .charStaff::before {
+    content: "";
+    position: absolute;
+    top: -6px;
+    left: -4px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: rgba(120, 200, 255, 0.9);
+    box-shadow: 0 0 8px rgba(120, 200, 255, 1);
+}
+
+/* Archer : arc */
+.class-archer .charBow {
+    width: 4px;
+    height: 34px;
+    border-radius: 20px;
+    border: 2px solid #c28f4c;
+    right: 6px;
+    bottom: 12px;
+    box-shadow: 0 0 4px #c28f4c;
+}
+
+/* Nécromancien : aura */
+.class-necromancien .charAura {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    left: 50%;
+    bottom: 6px;
+    transform: translateX(-50%);
+    background: radial-gradient(circle, rgba(150, 0, 200, 0.5), transparent);
+    box-shadow: 0 0 12px rgba(150, 0, 200, 0.9);
+    animation: pulse 1.4s ease-in-out infinite alternate;
+}
+
+@keyframes pulse {
+    from {
+        transform: translateX(-50%) scale(0.95);
+        opacity: 0.8;
+    }
+
+    to {
+        transform: translateX(-50%) scale(1.05);
+        opacity: 1;
+    }
+}
+
+.charInfoText {
+    font-size: 0.9rem;
+}
+
+/* HUD */
+#hud {
+    background: #111;
+    padding: 10px;
+    border-radius: 8px;
+    margin-top: 10px;
+    font-size: 0.9rem;
+}
+
+#hud span.label {
+    color: #81d4fa;
+}
+
+.characterItem {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background: #2a2a2a;
+    padding: 10px;
+    border-radius: 8px;
+    margin-bottom: 10px;
+    cursor: pointer;
+}
+
+.characterItem:hover {
+    background: #3a3a3a;
+}
+
+.characterMiniSprite {
+    width: 48px;
+    height: 48px;
+    position: relative;
+}
+
+.characterMiniSprite div {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+}
