@@ -2,21 +2,34 @@ import duckdb
 
 con = duckdb.connect("game.db")
 
-# Création de base si absente
+# ----------------------------
+# CHARACTERS TABLE (SIMPLE + SAFE)
+# ----------------------------
 con.execute("""
 CREATE TABLE IF NOT EXISTS characters (
-    id INTEGER PRIMARY KEY,
+    id INTEGER,
     account_id INTEGER NOT NULL,
     name TEXT NOT NULL,
     level INTEGER NOT NULL DEFAULT 1,
-    xp INTEGER NOT NULL DEFAULT 0
+    xp INTEGER NOT NULL DEFAULT 0,
+    class TEXT NOT NULL DEFAULT 'Guerrier',
+    appearance TEXT NOT NULL DEFAULT '{}',
+
+    -- STATS
+    hp INTEGER NOT NULL DEFAULT 100,
+    mana INTEGER NOT NULL DEFAULT 50,
+    force INTEGER NOT NULL DEFAULT 5,
+    agilite INTEGER NOT NULL DEFAULT 5,
+    intelligence INTEGER NOT NULL DEFAULT 5
 );
 """)
 
-# Table de chat compatible DuckDB
+# ----------------------------
+# CHAT SYSTEM
+# ----------------------------
 con.execute("""
-CREATE TABLE chat_messages (
-    id INTEGER PRIMARY KEY,
+CREATE TABLE IF NOT EXISTS chat_messages (
+    id INTEGER,
     instance_id INTEGER NOT NULL,
     sender_type TEXT NOT NULL,
     sender_id INTEGER,
@@ -25,18 +38,4 @@ CREATE TABLE chat_messages (
 );
 """)
 
-def column_exists(name: str) -> bool:
-    cols = con.execute("PRAGMA table_info('characters')").fetchall()
-    return any(c[1] == name for c in cols)
-
-# Ajout colonne class
-if not column_exists("class"):
-    con.execute("ALTER TABLE characters ADD COLUMN class TEXT DEFAULT 'Guerrier';")
-    print("Colonne 'class' ajoutée.")
-
-# Ajout colonne appearance
-if not column_exists("appearance"):
-    con.execute("ALTER TABLE characters ADD COLUMN appearance TEXT DEFAULT '{}';")
-    print("Colonne 'appearance' ajoutée.")
-
-print("game.db initialisé / mis à jour.")
+print("✔ Tables créées (DuckDB SAFE mode)")

@@ -19,6 +19,36 @@ r = redis.Redis(host="127.0.0.1", port=6379, decode_responses=True)
 chat_connections: dict[int, list[WebSocket]] = {}
 
 MAX_PLAYERS = 10
+BASE_STATS = {
+    "Guerrier": {
+        "hp": 120,
+        "mana": 50,
+        "force": 15,
+        "agilite": 5,
+        "intelligence": 2
+    },
+    "Mage": {
+        "hp": 65,
+        "mana": 120,
+        "force": 2,
+        "agilite": 8,
+        "intelligence": 18
+    },
+    "Archer": {
+        "hp": 90,
+        "mana": 70,
+        "force": 8,
+        "agilite": 15,
+        "intelligence": 6
+    },
+    "Nécromancien": {
+        "hp": 80,
+        "mana": 130,
+        "force": 6,
+        "agilite": 7,
+        "intelligence": 16
+    }
+}
 
 app.add_middleware(
     CORSMiddleware,
@@ -203,7 +233,7 @@ def create_character(payload: CharacterCreate, account_id: int = Depends(get_cur
     if len(name) < 3:
         raise HTTPException(400, "Nom trop court")
 
-    # Vérifier si le nom existe déjà pour ce compte
+    # Vérifie doublon nom
     existing = db.db.execute(
         "SELECT 1 FROM characters WHERE account_id = ? AND LOWER(name) = LOWER(?)",
         [account_id, name]
@@ -212,15 +242,53 @@ def create_character(payload: CharacterCreate, account_id: int = Depends(get_cur
     if existing:
         raise HTTPException(400, "Un personnage porte déjà ce nom.")
 
+    # Vérifie classe
     if payload.char_class not in VALID_CLASSES:
         raise HTTPException(400, "Classe invalide")
 
-    char = db.create_character(
+    base = BASE_STATS[payload.char_class]
+
+    # 🔥 1. génération ID (DuckDB safe)
+    next_id = db.db.execute("""
+        SELECT COALESCE(MAX(id), 0) + 1 FROM characters
+    """).fetchone()[0]
+
+    # 🔥 2. insert complet (AVEC id)
+    db.db.execute("""
+        INSERT INTO characters (
+            id,
+            account_id,
+            name,
+            level,
+            xp,
+            class,
+            appearance,
+            hp,
+            mana,
+            force,
+            agilite,
+            intelligence
+        )
+        VALUES (?, ?, ?, 1, 0, ?, ?, ?, ?, ?, ?, ?)
+    """, [
+        next_id,
         account_id,
         name,
         payload.char_class,
-        payload.appearance
-    )
+        json.dumps(payload.appearance),
+        base["hp"],
+        base["mana"],
+        base["force"],
+        base["agilite"],
+        base["intelligence"]
+    ])
+
+    # 🔥 3. récupération safe
+    char = db.db.execute("""
+        SELECT *
+        FROM characters
+        WHERE id = ?
+    """, [next_id]).fetchone()
 
     return {
         "success": True,
@@ -231,11 +299,14 @@ def create_character(payload: CharacterCreate, account_id: int = Depends(get_cur
             "level": char[3],
             "xp": char[4],
             "class": char[5],
-            "appearance": json.loads(char[6])
+            "appearance": json.loads(char[6]),
+            "hp": char[7],
+            "mana": char[8],
+            "force": char[9],
+            "agilite": char[10],
+            "intelligence": char[11]
         }
     }
-
-# -----------------------------
 # ADMIN
 # -----------------------------
 @app.post("/admin/create_instance")
@@ -411,3 +482,25 @@ async def admin_send_chat(instance_id: int, payload: dict = Body(...)):
             chat_connections[instance_id].remove(ws)
 
     return {"success": True}
+@app.get("/character/{id}")
+def get_character(id: int, account_id: int = Depends(get_current_account)):
+    char = db.db.execute("""
+        SELECT name, class, level, xp, hp, mana, force, agilite, intelligence
+        FROM characters
+        WHERE id = ? AND account_id = ?
+    """, [id, account_id]).fetchone()
+
+    if not char:
+        raise HTTPException(404, "Character not found")
+
+    return {
+        "name": char[0],
+        "class": char[1],
+        "level": char[2],
+        "xp": char[3],
+        "hp": char[4],
+        "mana": char[5],
+        "force": char[6],
+        "agilite": char[7],
+        "intelligence": char[8]
+    }
