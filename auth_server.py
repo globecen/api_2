@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Header
 from pydantic import BaseModel
-from passlib.context import CryptContext
+from passlib.hash import argon2
 import time, secrets
 from fastapi.middleware.cors import CORSMiddleware
 from AuthDatabase import AuthDatabase
@@ -15,7 +15,6 @@ db = AuthDatabase("auth.db")
 # Redis
 r = redis.Redis(host="127.0.0.1", port=6379, decode_responses=True)
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 SESSION_DURATION = 86400  # 24h
 
 app.add_middleware(
@@ -39,17 +38,16 @@ class Login(BaseModel):
 # -----------------------------
 # OUTILS
 # -----------------------------
-def hash_password(p): 
-    return pwd_context.hash(p)
+def hash_password(p: str):
+    return argon2.hash(p)
 
-def verify_password(p, h): 
-    return pwd_context.verify(p, h)
+def verify_password(p: str, h: str):
+    return argon2.verify(p, h)
 
 def create_session(account_id: int):
     session_id = secrets.token_hex(32)
     expires = int(time.time()) + SESSION_DURATION
 
-    # Stockage Redis
     r.hset(f"session:{session_id}", mapping={
         "account_id": account_id,
         "expires_at": expires

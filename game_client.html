@@ -6,39 +6,104 @@
     <title>Client Jeu RPG</title>
     <link rel="stylesheet" href="style-ui.css">
 </head>
+
 <body>
+
     <h1>Jeu RPG – Client</h1>
-    <!-- PANEL LOGIN -->
+
+    <!-- LOGIN -->
     <div id="loginPanel" class="panel">
         <h2>Connexion</h2>
+
         <input id="loginUser" placeholder="Nom d'utilisateur">
-        <input id="loginPass" type="password" placeholder="Mot de passe">
+
+        <input
+            id="loginPass"
+            type="password"
+            placeholder="Mot de passe"
+        >
+
         <button onclick="login()">Se connecter</button>
-        <p>Pas de compte ? <a href="#" onclick="showRegister()">Créer un compte</a></p>
+
+        <p>
+            Pas de compte ?
+            <a href="#" onclick="showRegister()">
+                Créer un compte
+            </a>
+        </p>
     </div>
-    <!-- PANEL REGISTER -->
+
+    <!-- REGISTER -->
     <div id="registerPanel" class="panel" style="display:none;">
         <h2>Créer un compte</h2>
+
         <input id="regUser" placeholder="Nom d'utilisateur">
-        <input id="regPass" type="password" placeholder="Mot de passe">
-        <button onclick="register()">Créer le compte</button>
-        <p>Déjà un compte ? <a href="#" onclick="showLogin()">Se connecter</a></p>
+
+        <input
+            id="regPass"
+            type="password"
+            placeholder="Mot de passe"
+        >
+
+        <button onclick="register()">
+            Créer le compte
+        </button>
+
+        <p>
+            Déjà un compte ?
+            <a href="#" onclick="showLogin()">
+                Se connecter
+            </a>
+        </p>
     </div>
-    <!-- PANEL CHARACTERS -->
+
+    <!-- CHARACTER SELECTION -->
     <div id="characterPanel" class="panel" style="display:none;">
+
         <h2>Vos personnages</h2>
-        <div id="charList" class="characterList">Chargement...</div>
-        <h3>Créer un personnage</h3>
+
+        <div id="charList" class="characterList">
+            Chargement...
+        </div>
+
+        <button onclick="showCreateCharacter()">
+            Créer un personnage
+        </button>
+
+        <button
+            onclick="logout()"
+            style="background:#e53935;margin-top:20px;"
+        >
+            Se déconnecter
+        </button>
+
+    </div>
+
+    <!-- CHARACTER CREATION -->
+    <div id="createCharacterPanel" class="panel" style="display:none;">
+
+        <h2>Créer un personnage</h2>
+
         <input id="charName" placeholder="Nom du personnage">
+
         <select id="charClassSelect" onchange="updatePreview()">
             <option>Guerrier</option>
             <option>Mage</option>
             <option>Archer</option>
             <option>Nécromancien</option>
         </select>
+
         <label>Couleur du personnage :</label>
-        <input id="charColor" type="color" value="#ff0000" oninput="updatePreview()">
+
+        <input
+            id="charColor"
+            type="color"
+            value="#ff0000"
+            oninput="updatePreview()"
+        >
+
         <div id="previewBox">
+
             <div id="charSprite" class="charSprite">
                 <div class="charAura"></div>
                 <div class="charBody"></div>
@@ -47,57 +112,575 @@
                 <div class="charStaff"></div>
                 <div class="charBow"></div>
             </div>
+
             <div class="charInfoText">
                 <div id="previewName">Nom : (vide)</div>
                 <div id="previewClass">Classe : Guerrier</div>
                 <div id="previewColor">Couleur : #ff0000</div>
             </div>
+
         </div>
-        <button onclick="createCharacter()">Créer</button>
-        <button onclick="logout()" style="background:#e53935;margin-top:20px;">Se déconnecter</button>
+
+        <button onclick="createCharacter()">
+            Créer
+        </button>
+
+        <button onclick="showCharacters()">
+            Retour aux personnages
+        </button>
+
     </div>
-    <!-- PANEL INSTANCE SELECTOR -->
+
+    <!-- INSTANCE PANEL -->
     <div id="instancePanel" class="panel" style="display:none;">
+
         <h2>Choisir une instance</h2>
-        <div id="instanceList">Chargement...</div>
-        <button onclick="logout()" style="background:#e53935;margin-top:20px;">Se déconnecter</button>
-    </div>
-    <!-- PANEL GAME -->
-    <div id="gamePanel" class="panel" style="display:none;">
-        <h2>Jeu</h2>
-        <p id="gameInfo"></p>
-        <div id="hud">
-            <div><span class="label">Nom :</span> <span id="hudName"></span></div>
-            <div><span class="label">Classe :</span> <span id="hudClass"></span></div>
-            <div><span class="label">Niveau :</span> <span id="hudLevel"></span></div>
-            <div><span class="label">HP :</span> <span id="hudHp"></span></div>
-            <div><span class="label">Mana :</span> <span id="hudMana"></span></div>
-            <div><span class="label">Force :</span> <span id="hudStr"></span></div>
-            <div><span class="label">Agilité :</span> <span id="hudAgi"></span></div>
-            <div><span class="label">Intelligence :</span> <span id="hudInt"></span></div>
+
+        <div id="instanceList">
+            Chargement...
         </div>
-        <h3>Chat de l'instance</h3>
-        <div id="chatBox" style="
-    background:#1e1e1e;
-    border-radius:8px;
-    padding:10px;
-    height:200px;
-    overflow-y:auto;
-    margin-bottom:10px;
-"></div>
-        <input id="chatInput" placeholder="Votre message..." style="
-    width:100%;
-    padding:10px;
-    border-radius:5px;
-    background:#333;
-    color:white;
-    border:none;
-">
-        <button onclick="sendChatMessage()" style="margin-top:10px;">Envoyer</button>
-        <button onclick="returnToCharacterSelect()">Retour aux personnages</button>
-        <button onclick="logout()" style="background:#e53935;margin-top:20px;">Se déconnecter</button>
+
+        <button
+            onclick="logout()"
+            style="background:#e53935;margin-top:20px;"
+        >
+            Se déconnecter
+        </button>
+
     </div>
-    <script src="script.js"></script>
+
+    <!-- GAME PANEL -->
+    <div id="gamePanel" class="panel" style="display:none;">
+
+        <h2>Jeu</h2>
+
+        <p id="gameInfo"></p>
+
+        <div id="hud">
+
+            <div>
+                <span class="label">Nom :</span>
+                <span id="hudName"></span>
+            </div>
+
+            <div>
+                <span class="label">Classe :</span>
+                <span id="hudClass"></span>
+            </div>
+
+            <div>
+                <span class="label">Niveau :</span>
+                <span id="hudLevel"></span>
+            </div>
+
+            <div>
+                <span class="label">HP :</span>
+                <span id="hudHp"></span>
+            </div>
+
+            <div>
+                <span class="label">Mana :</span>
+                <span id="hudMana"></span>
+            </div>
+
+            <div>
+                <span class="label">Force :</span>
+                <span id="hudStr"></span>
+            </div>
+
+            <div>
+                <span class="label">Agilité :</span>
+                <span id="hudAgi"></span>
+            </div>
+
+            <div>
+                <span class="label">Intelligence :</span>
+                <span id="hudInt"></span>
+            </div>
+
+        </div>
+
+        <h3>Chat de l'instance</h3>
+
+        <div id="chatBox" style="
+            background:#1e1e1e;
+            border-radius:8px;
+            padding:10px;
+            height:200px;
+            overflow-y:auto;
+            margin-bottom:10px;
+        "></div>
+
+        <input
+            id="chatInput"
+            placeholder="Votre message..."
+            style="
+                width:100%;
+                padding:10px;
+                border-radius:5px;
+                background:#333;
+                color:white;
+                border:none;
+            "
+        >
+
+        <button onclick="sendChatMessage()" style="margin-top:10px;">
+            Envoyer
+        </button>
+
+        <button onclick="returnToCharacterSelect()">
+            Retour aux personnages
+        </button>
+
+        <button
+            onclick="logout()"
+            style="background:#e53935;margin-top:20px;"
+        >
+            Se déconnecter
+        </button>
+
+    </div>
+
+    <script>
+
+        let chatWS = null;
+
+        const AUTH = "http://127.0.0.1:3001";
+        const GAME = "http://127.0.0.1:3000";
+
+        let sessionId = null;
+        let accountId = null;
+        let selectedCharacter = null;
+        let currentInstanceId = null;
+        let ws = null;
+
+        /* ------------------------------
+           DOM
+        ------------------------------ */
+
+        const loginPanel = document.getElementById("loginPanel");
+        const registerPanel = document.getElementById("registerPanel");
+        const characterPanel = document.getElementById("characterPanel");
+        const createCharacterPanel = document.getElementById("createCharacterPanel");
+        const instancePanel = document.getElementById("instancePanel");
+        const gamePanel = document.getElementById("gamePanel");
+
+        /* ------------------------------
+           PANELS
+        ------------------------------ */
+
+        function hideAllPanels() {
+            loginPanel.style.display = "none";
+            registerPanel.style.display = "none";
+            characterPanel.style.display = "none";
+            createCharacterPanel.style.display = "none";
+            instancePanel.style.display = "none";
+            gamePanel.style.display = "none";
+        }
+
+        function showLogin() {
+            hideAllPanels();
+            loginPanel.style.display = "block";
+        }
+
+        function showRegister() {
+            hideAllPanels();
+            registerPanel.style.display = "block";
+        }
+
+        function showCharacters() {
+            hideAllPanels();
+            characterPanel.style.display = "block";
+        }
+
+        function showCreateCharacter() {
+            hideAllPanels();
+            createCharacterPanel.style.display = "block";
+            updatePreview();
+        }
+
+        function showInstances() {
+            hideAllPanels();
+            instancePanel.style.display = "block";
+        }
+
+        function showGame() {
+            hideAllPanels();
+            gamePanel.style.display = "block";
+        }
+
+        /* ------------------------------
+           LOGOUT
+        ------------------------------ */
+
+        function logout() {
+
+            sessionId = null;
+            accountId = null;
+            selectedCharacter = null;
+            currentInstanceId = null;
+
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+
+            if (chatWS) {
+                chatWS.close();
+                chatWS = null;
+            }
+
+            showLogin();
+        }
+
+        /* ------------------------------
+           REGISTER
+        ------------------------------ */
+
+        async function register() {
+
+            const username = regUser.value.trim();
+            const password = regPass.value.trim();
+
+            const res = await fetch(`${AUTH}/register`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    username,
+                    password
+                })
+            });
+
+            if (!res.ok) {
+                alert(await res.text());
+                return;
+            }
+
+            alert("Compte créé !");
+            showLogin();
+        }
+
+        /* ------------------------------
+           LOGIN
+        ------------------------------ */
+
+        async function login() {
+
+            const username = loginUser.value.trim();
+            const password = loginPass.value.trim();
+
+            const res = await fetch(`${AUTH}/login`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    username,
+                    password
+                })
+            });
+
+            if (!res.ok) {
+                alert("Identifiants invalides");
+                return;
+            }
+
+            const data = await res.json();
+
+            sessionId = data.session_id;
+
+            const check = await fetch(`${AUTH}/validate_session`, {
+                headers: {
+                    Authorization: "Session " + sessionId
+                }
+            });
+
+            const info = await check.json();
+
+            accountId = info.account_id;
+
+            connectWebSocket();
+
+            loadCharacters();
+        }
+
+        /* ------------------------------
+           CHARACTERS
+        ------------------------------ */
+
+        async function loadCharacters() {
+
+            const res = await fetch(`${GAME}/characters_list`, {
+                headers: {
+                    Authorization: "Session " + sessionId
+                }
+            });
+
+            const data = await res.json();
+
+            const div = document.getElementById("charList");
+
+            div.innerHTML = "";
+
+            if (!data.characters.length) {
+                showCreateCharacter();
+                return;
+            }
+
+            showCharacters();
+
+            data.characters.forEach(c => {
+
+                const btn = document.createElement("button");
+
+                btn.textContent =
+                    `${c.name} (Lvl ${c.level}) – ${c.class}`;
+
+                btn.onclick = () => selectCharacter(c);
+
+                div.appendChild(btn);
+            });
+        }
+
+        /* ------------------------------
+           CREATE CHARACTER
+        ------------------------------ */
+
+        async function createCharacter() {
+
+            const name = charName.value.trim();
+            const charClass = charClassSelect.value;
+            const color = charColor.value;
+
+            if (!name) {
+                alert("Nom obligatoire.");
+                return;
+            }
+
+            const payload = {
+                name,
+                char_class: charClass,
+                appearance: {
+                    color
+                }
+            };
+
+            const res = await fetch(`${GAME}/characters`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: "Session " + sessionId
+                },
+                body: JSON.stringify(payload)
+            });
+
+            const txt = await res.text();
+
+            if (!res.ok) {
+                alert(txt);
+                return;
+            }
+
+            charName.value = "";
+
+            await loadCharacters();
+        }
+
+        /* ------------------------------
+           PREVIEW
+        ------------------------------ */
+
+        function updatePreview() {
+
+            const color = charColor.value;
+            const name = charName.value.trim() || "(vide)";
+            const charClass = charClassSelect.value;
+
+            document.documentElement
+                .style
+                .setProperty("--char-color", color);
+
+            const sprite = document.getElementById("charSprite");
+
+            sprite.classList.remove(
+                "class-guerrier",
+                "class-mage",
+                "class-archer",
+                "class-necromancien"
+            );
+
+            if (charClass === "Guerrier")
+                sprite.classList.add("class-guerrier");
+
+            else if (charClass === "Mage")
+                sprite.classList.add("class-mage");
+
+            else if (charClass === "Archer")
+                sprite.classList.add("class-archer");
+
+            else if (charClass === "Nécromancien")
+                sprite.classList.add("class-necromancien");
+
+            document.getElementById("previewName")
+                .textContent = "Nom : " + name;
+
+            document.getElementById("previewClass")
+                .textContent = "Classe : " + charClass;
+
+            document.getElementById("previewColor")
+                .textContent = "Couleur : " + color;
+        }
+
+        /* ------------------------------
+           SELECT CHARACTER
+        ------------------------------ */
+
+        function selectCharacter(character) {
+            selectedCharacter = character;
+            loadInstances();
+        }
+
+        /* ------------------------------
+           INSTANCES
+        ------------------------------ */
+
+        async function loadInstances() {
+
+            showInstances();
+
+            const res = await fetch(`${GAME}/instances_list`);
+
+            const data = await res.json();
+
+            const div = document.getElementById("instanceList");
+
+            div.innerHTML = "";
+
+            if (!data.instances.length) {
+                div.textContent = "Aucune instance disponible.";
+                return;
+            }
+
+            data.instances.forEach(inst => {
+
+                const box = document.createElement("div");
+
+                box.className = "instanceBox";
+
+                box.innerHTML = `
+                    <strong>Instance ${inst.instance_id}</strong><br>
+                    Joueurs : ${inst.players}<br>
+                    <button onclick="joinInstance(${inst.instance_id})">
+                        Rejoindre
+                    </button>
+                `;
+
+                div.appendChild(box);
+            });
+        }
+
+        /* ------------------------------
+           JOIN INSTANCE
+        ------------------------------ */
+
+        async function joinInstance(id) {
+
+            const res = await fetch(`${GAME}/join_instance`, {
+                method: "POST",
+                headers: {
+                    Authorization: "Session " + sessionId
+                }
+            });
+
+            if (!res.ok) {
+                alert(await res.text());
+                return;
+            }
+
+            currentInstanceId = id;
+
+            showGame();
+
+            openChatWebSocket(id);
+        }
+
+        /* ------------------------------
+           CHAT
+        ------------------------------ */
+
+        function openChatWebSocket(instanceId) {
+
+            if (chatWS)
+                chatWS.close();
+
+            chatWS = new WebSocket(
+                `ws://127.0.0.1:3000/ws/chat/${instanceId}`
+            );
+
+            const chatBox = document.getElementById("chatBox");
+
+            chatBox.innerHTML = "";
+
+            chatWS.onmessage = (event) => {
+
+                const div = document.createElement("div");
+
+                div.textContent = event.data;
+
+                chatBox.appendChild(div);
+
+                chatBox.scrollTop = chatBox.scrollHeight;
+            };
+        }
+
+        function sendChatMessage() {
+
+            const input = document.getElementById("chatInput");
+
+            const msg = input.value.trim();
+
+            if (!msg || !chatWS)
+                return;
+
+            chatWS.send(msg);
+
+            input.value = "";
+        }
+
+        /* ------------------------------
+           RETURN
+        ------------------------------ */
+
+        function returnToCharacterSelect() {
+
+            if (chatWS) {
+                chatWS.close();
+                chatWS = null;
+            }
+
+            loadCharacters();
+        }
+
+        /* ------------------------------
+           WS
+        ------------------------------ */
+
+        function connectWebSocket() {
+
+            if (ws)
+                ws.close();
+
+            ws = new WebSocket(
+                "ws://127.0.0.1:3000/ws/instances"
+            );
+        }
+
+        showLogin();
+
+    </script>
+
 </body>
 
 </html>
