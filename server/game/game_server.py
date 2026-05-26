@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import requests, json
 import redis
 
-from GameDatabase import GameDatabase
+from model.GameDatabase import GameDatabase
 from anti_cheat import AntiCheat
 
 AUTH_SERVER = "http://127.0.0.1:3001"
@@ -14,7 +14,20 @@ remote_players_connections: dict[int, list[WebSocket]] = {}
 # instance_id -> { account_id -> player_data }
 instance_players_state = {}
 app = FastAPI()
+@app.on_event("startup")
+def startup_event():
+    import subprocess
 
+    if getattr(app.state, "db_initialized", False):
+        return
+
+    print("Init DB auth...")
+
+    subprocess.run(["python", "init_auth_db.py"], check=True)
+
+    app.state.db_initialized = True
+
+    print("DB OK")
 db = GameDatabase("game.db")
 anti_cheat = AntiCheat()
 
@@ -53,7 +66,7 @@ BASE_STATS = {
         "intelligence": 16
     }
 }
-@app.on_event("startup")
+@app.on_event("startup2")
 def startup_init():
     print("🧹 Reset des instances...")
 

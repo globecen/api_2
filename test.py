@@ -13,7 +13,7 @@ def random_string(n=8):
 
 def create_account():
     username = "user_" + random_string()
-    password = "pass123"
+    password = "pass123+"+ random_string()
 
     r = requests.post(f"{AUTH}/register", json={
         "username": username,

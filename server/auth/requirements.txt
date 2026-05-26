@@ -1,0 +1,9 @@
+fastapi
+uvicorn[standard]
+
+pydantic
+passlib[argon2]
+
+redis
+
+python-dotenv
