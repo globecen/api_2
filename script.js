@@ -867,24 +867,27 @@ async function joinInstance(id) {
 }
 function connectGameWS() {
 
-    // 🔥 fermer ancien socket proprement
+    // fermer ancien socket proprement
     if (gameWS) {
         gameWS.onmessage = null;
         gameWS.onclose = null;
         gameWS.close();
     }
 
+    if (!currentInstanceId || !selectedCharacter) return;
+
     gameWS = new WebSocket(
         `ws://127.0.0.1:3000/ws/game/${currentInstanceId}/${selectedCharacter.id}`
     );
 
     gameWS.onopen = () => {
-        console.log("Game WS connecté");
+        console.log("Game WS connected");
     };
 
     gameWS.onclose = () => {
 
-        if (currentInstanceId || selectedCharacter) {
+        // si on était en jeu → retour propre UI
+        if (currentInstanceId) {
             forceReturnToCharacterSelect();
         }
     };
@@ -893,23 +896,7 @@ function connectGameWS() {
 
         const data = JSON.parse(event.data);
 
-        // =========================
-        // KICK
-        // =========================
-        if (data.type === "kick") {
-
-            showKickPopup(data.reason);
-
-            setTimeout(() => {
-                forceReturnToCharacterSelect();
-            }, 1200);
-
-            return;
-        }
-
-        // =========================
         // PLAYERS SNAPSHOT
-        // =========================
         if (data.type === "players") {
 
             Object.values(remotePlayers).forEach(p => p.remove());
@@ -921,9 +908,7 @@ function connectGameWS() {
             });
         }
 
-        // =========================
         // MOVE
-        // =========================
         if (data.type === "move") {
 
             if (data.character_id === selectedCharacter.id) return;
@@ -935,15 +920,12 @@ function connectGameWS() {
             p.style.top = `${data.y * TILE_SIZE}px`;
         }
 
-        // =========================
         // DISCONNECT
-        // =========================
         if (data.type === "disconnect") {
 
             const id = data.character_id || data.id;
 
             const p = remotePlayers[id];
-
             if (p) {
                 p.remove();
                 delete remotePlayers[id];
@@ -954,7 +936,6 @@ function connectGameWS() {
 
 function forceReturnToCharacterSelect() {
 
-    // 🔥 fermer WS jeu
     if (gameWS) {
         gameWS.onmessage = null;
         gameWS.onclose = null;
@@ -962,33 +943,25 @@ function forceReturnToCharacterSelect() {
         gameWS = null;
     }
 
-    // 🔥 fermer chat
     if (chatWS) {
         chatWS.close();
         chatWS = null;
     }
 
-    // 🔥 quitter instance côté serveur
     leaveInstance();
 
-    // 🔥 nettoyer UI jeu
     cleanupGameUI();
 
-    // 🔥 reset state critique
     currentInstanceId = null;
     selectedCharacter = null;
 
     player.x = null;
     player.y = null;
 
-    // 🔥 IMPORTANT: vider remote players
     Object.values(remotePlayers).forEach(p => p.remove());
     Object.keys(remotePlayers).forEach(k => delete remotePlayers[k]);
 
-    // 🔥 retourner UI perso SANS reload page
     showCharacters();
-
-    // 🔥 reload liste persos pour éviter incohérences
     loadCharacters();
 }
 function createOrUpdateRemotePlayer(data) {
@@ -1047,17 +1020,7 @@ function syncRemotePlayers(serverPlayers) {
         }
     });
 }
-function showKickPopup(reason) {
-    const popup = document.getElementById("kickPopup");
-    const text = document.getElementById("kickReason");
 
-    text.textContent = reason || "Vous avez été déconnecté de l’instance";
-    popup.style.display = "flex";
-}
-
-function closeKickPopup() {
-    document.getElementById("kickPopup").style.display = "none";
-}
 function cleanupGameUI() {
     Object.values(remotePlayers).forEach(p => p.remove());
     Object.keys(remotePlayers).forEach(k => delete remotePlayers[k]);
