@@ -4,27 +4,15 @@ from passlib.hash import argon2
 import time, secrets
 from fastapi.middleware.cors import CORSMiddleware
 from AuthDatabase import AuthDatabase
+from init_auth_db import init_auth_db
 import redis
 
 # -----------------------------
 # INITIALISATION
 # -----------------------------
 app = FastAPI()
+init_auth_db()
 r = redis.Redis(host="redis", port=6379, decode_responses=True)
-@app.on_event("startup")
-def startup_event():
-    import subprocess
-
-    if getattr(app.state, "db_initialized", False):
-        return
-
-    print("Init DB auth...")
-
-    subprocess.run(["python", "init_auth_db.py"], check=True)
-
-    app.state.db_initialized = True
-
-    print("DB OK")
     
 db = AuthDatabase("auth.db")
 

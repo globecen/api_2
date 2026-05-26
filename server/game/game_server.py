@@ -1,6 +1,7 @@
 from fastapi import Body, FastAPI, HTTPException, Header, WebSocket, WebSocketDisconnect, Depends
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from init_game_db import init_game_db
 import requests, json
 import redis
 
@@ -14,21 +15,10 @@ remote_players_connections: dict[int, list[WebSocket]] = {}
 # instance_id -> { account_id -> player_data }
 instance_players_state = {}
 app = FastAPI()
+init_game_db()
 r = redis.Redis(host="redis", port=6379, decode_responses=True)
 @app.on_event("startup")
 def startup_event():
-    import subprocess
-
-    if getattr(app.state, "db_initialized", False):
-        return
-
-    print("Init DB auth...")
-
-    subprocess.run(["python", "init_auth_db.py"], check=True)
-
-    app.state.db_initialized = True
-
-    print("DB OK")
     print("🧹 Reset des instances...")
 
     # 1. clean instances
