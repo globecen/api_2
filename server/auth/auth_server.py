@@ -10,6 +10,7 @@ import redis
 # INITIALISATION
 # -----------------------------
 app = FastAPI()
+r = redis.Redis(host="redis", port=6379, decode_responses=True)
 @app.on_event("startup")
 def startup_event():
     import subprocess
@@ -24,10 +25,11 @@ def startup_event():
     app.state.db_initialized = True
 
     print("DB OK")
+    
 db = AuthDatabase("auth.db")
 
 # Redis
-r = redis.Redis(host="redis", port=6379, decode_responses=True)
+
 
 SESSION_DURATION = 86400  # 24h
 

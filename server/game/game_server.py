@@ -14,6 +14,7 @@ remote_players_connections: dict[int, list[WebSocket]] = {}
 # instance_id -> { account_id -> player_data }
 instance_players_state = {}
 app = FastAPI()
+r = redis.Redis(host="redis", port=6379, decode_responses=True)
 @app.on_event("startup")
 def startup_event():
     import subprocess
@@ -28,11 +29,36 @@ def startup_event():
     app.state.db_initialized = True
 
     print("DB OK")
+    print("🧹 Reset des instances...")
+
+    # 1. clean instances
+    instances = r.smembers("instances")
+
+    for inst_id in instances:
+        r.delete(f"instance:{inst_id}:players")
+
+    r.delete("instances")
+
+    # 2. clean players mapping
+    for k in r.keys("player:*"):
+        r.delete(k)
+
+    # 3. reset compteur (optionnel mais conseillé)
+    r.set("instance_counter", 1)
+
+    # 4. création instance par défaut
+    default_id = 1
+
+    r.sadd("instances", default_id)
+    r.delete(f"instance:{default_id}:players")
+
+    print(f"🆕 Instance par défaut créée: {default_id}")
+
+    print("✅ Startup terminé proprement")
 db = GameDatabase("game.db")
 anti_cheat = AntiCheat()
 
 # Redis
-r = redis.Redis(host="redis", port=6379, decode_responses=True)
 chat_connections: dict[int, list[WebSocket]] = {}
 
 MAX_PLAYERS = 10
@@ -66,34 +92,7 @@ BASE_STATS = {
         "intelligence": 16
     }
 }
-@app.on_event("startup2")
-def startup_init():
-    print("🧹 Reset des instances...")
-
-    # 1. clean instances
-    instances = r.smembers("instances")
-
-    for inst_id in instances:
-        r.delete(f"instance:{inst_id}:players")
-
-    r.delete("instances")
-
-    # 2. clean players mapping
-    for k in r.keys("player:*"):
-        r.delete(k)
-
-    # 3. reset compteur (optionnel mais conseillé)
-    r.set("instance_counter", 1)
-
-    # 4. création instance par défaut
-    default_id = 1
-
-    r.sadd("instances", default_id)
-    r.delete(f"instance:{default_id}:players")
-
-    print(f"🆕 Instance par défaut créée: {default_id}")
-
-    print("✅ Startup terminé proprement")
+    
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],

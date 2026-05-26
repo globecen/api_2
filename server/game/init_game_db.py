@@ -43,3 +43,4 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 """)
 
 print("✔ Tables créées (DuckDB SAFE mode + POSITION SYSTEM)")
+    con.close()

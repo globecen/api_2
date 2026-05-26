@@ -20,3 +20,4 @@ CREATE TABLE IF NOT EXISTS sessions (
 """)
 
 print("auth.db initialisé.")
+    con.close()
