@@ -553,7 +553,7 @@ function createPlayer() {
     updatePlayer();
 }
 
- 
+
 function updateCamera() {
 
     const world = document.getElementById("gameWorld");
@@ -631,11 +631,69 @@ async function initGame() {
 
     renderMap();
     createPlayer();
+    await loadRemotePlayers();
     updatePlayer();
+    // 🔥 reset visuel des joueurs distants
+    Object.values(remotePlayers).forEach(p => p.remove());
+    Object.keys(remotePlayers).forEach(k => delete remotePlayers[k]);
     connectGameWS();
     openChatWebSocket(currentInstanceId);
     loadCharacterStats(selectedCharacter.id);
-    
+
+}
+async function loadRemotePlayers() {
+
+    if (!currentInstanceId) return;
+
+    const res = await fetch(`${GAME}/instance/players/${currentInstanceId}`, {
+        headers: {
+            Authorization: "Session " + sessionId
+        }
+    });
+
+    if (!res.ok) return;
+
+    const data = await res.json();
+
+    data.players.forEach(p => {
+
+        if (p.id === selectedCharacter.id) return;
+
+        createRemotePlayer(p);
+    });
+}
+function createRemotePlayer(p) {
+
+    const world = document.getElementById("gameWorld");
+
+    const el = document.createElement("div");
+    el.className = "remotePlayer";
+    el.id = "remote_" + p.account_id;
+
+    let spriteClass = "class-guerrier";
+    if (p.class === "Mage") spriteClass = "class-mage";
+    if (p.class === "Archer") spriteClass = "class-archer";
+    if (p.class === "Nécromancien") spriteClass = "class-necromancien";
+
+    el.innerHTML = `
+        <div class="playerName">${p.name}</div>
+
+        <div class="charSprite ${spriteClass}"
+             style="--char-color:${p.appearance?.color || "#ff0000"}">
+
+            <div class="charAura"></div>
+            <div class="charBody"></div>
+            <div class="charHead"></div>
+            <div class="charWeapon"></div>
+            <div class="charStaff"></div>
+            <div class="charBow"></div>
+        </div>
+    `;
+
+    el.style.left = (p.x * TILE_SIZE) + "px";
+    el.style.top = (p.y * TILE_SIZE) + "px";
+
+    world.appendChild(el);
 }
 window.addEventListener("load", async () => {
     sessionId = localStorage.getItem("sessionId");
@@ -658,7 +716,7 @@ window.addEventListener("load", async () => {
     accountId = info.account_id;
 
     connectWebSocket();
-    
+
     const res = await fetch(`${GAME}/me/state`, {
         headers: { Authorization: "Session " + sessionId }
     });
@@ -809,107 +867,200 @@ async function joinInstance(id) {
 }
 function connectGameWS() {
 
-    if (gameWS)
+    // 🔥 fermer ancien socket proprement
+    if (gameWS) {
+        gameWS.onmessage = null;
+        gameWS.onclose = null;
         gameWS.close();
+    }
 
     gameWS = new WebSocket(
         `ws://127.0.0.1:3000/ws/game/${currentInstanceId}/${selectedCharacter.id}`
     );
 
+    gameWS.onopen = () => {
+        console.log("Game WS connecté");
+    };
+
+    gameWS.onclose = () => {
+
+        if (currentInstanceId || selectedCharacter) {
+            forceReturnToCharacterSelect();
+        }
+    };
+
     gameWS.onmessage = (event) => {
 
         const data = JSON.parse(event.data);
 
-        // liste joueurs
+        // =========================
+        // KICK
+        // =========================
+        if (data.type === "kick") {
+
+            showKickPopup(data.reason);
+
+            setTimeout(() => {
+                forceReturnToCharacterSelect();
+            }, 1200);
+
+            return;
+        }
+
+        // =========================
+        // PLAYERS SNAPSHOT
+        // =========================
         if (data.type === "players") {
 
+            Object.values(remotePlayers).forEach(p => p.remove());
+            Object.keys(remotePlayers).forEach(k => delete remotePlayers[k]);
+
             data.players.forEach(p => {
-
-                // soi-même
-                if (p.id === selectedCharacter.id)
-                    return;
-
+                if (p.id === selectedCharacter.id) return;
                 createOrUpdateRemotePlayer(p);
             });
         }
 
-        // mouvement
+        // =========================
+        // MOVE
+        // =========================
         if (data.type === "move") {
 
-            if (data.character_id === selectedCharacter.id)
-                return;
+            if (data.character_id === selectedCharacter.id) return;
 
             const p = remotePlayers[data.character_id];
-
             if (!p) return;
 
             p.style.left = `${data.x * TILE_SIZE}px`;
             p.style.top = `${data.y * TILE_SIZE}px`;
         }
 
-        // déco
+        // =========================
+        // DISCONNECT
+        // =========================
         if (data.type === "disconnect") {
 
-            const p = remotePlayers[data.character_id];
+            const id = data.character_id || data.id;
+
+            const p = remotePlayers[id];
 
             if (p) {
                 p.remove();
-                delete remotePlayers[data.character_id];
+                delete remotePlayers[id];
             }
         }
     };
 }
+
+function forceReturnToCharacterSelect() {
+
+    // 🔥 fermer WS jeu
+    if (gameWS) {
+        gameWS.onmessage = null;
+        gameWS.onclose = null;
+        gameWS.close();
+        gameWS = null;
+    }
+
+    // 🔥 fermer chat
+    if (chatWS) {
+        chatWS.close();
+        chatWS = null;
+    }
+
+    // 🔥 quitter instance côté serveur
+    leaveInstance();
+
+    // 🔥 nettoyer UI jeu
+    cleanupGameUI();
+
+    // 🔥 reset state critique
+    currentInstanceId = null;
+    selectedCharacter = null;
+
+    player.x = null;
+    player.y = null;
+
+    // 🔥 IMPORTANT: vider remote players
+    Object.values(remotePlayers).forEach(p => p.remove());
+    Object.keys(remotePlayers).forEach(k => delete remotePlayers[k]);
+
+    // 🔥 retourner UI perso SANS reload page
+    showCharacters();
+
+    // 🔥 reload liste persos pour éviter incohérences
+    loadCharacters();
+}
 function createOrUpdateRemotePlayer(data) {
 
-    let el = remotePlayers[data.id];
+    let el = remotePlayers[data.id ?? data.character_id];
+    const id = data.id ?? data.character_id;
+
+    const world = document.getElementById("gameWorld");
+    if (!world) return;
 
     if (!el) {
 
         el = document.createElement("div");
         el.className = "remotePlayer";
+        el.id = "remote_" + id;
 
-        const color =
-            data.appearance?.color || "#00aaff";
+        const color = data.appearance?.color || "#00aaff";
 
-        const spriteClass =
-            data.class === "Guerrier"
-                ? "class-guerrier"
-                : data.class === "Mage"
-                    ? "class-mage"
-                    : data.class === "Archer"
-                        ? "class-archer"
-                        : "class-necromancien";
+        let spriteClass = "class-guerrier";
+        if (data.class === "Mage") spriteClass = "class-mage";
+        else if (data.class === "Archer") spriteClass = "class-archer";
+        else if (data.class === "Nécromancien") spriteClass = "class-necromancien";
 
         el.innerHTML = `
-            <div class="playerName">
-                ${data.name}
-            </div>
+            <div class="playerName">${data.name}</div>
 
             <div class="charSprite ${spriteClass}"
-                 style="--char-color:${color};">
-
+                 style="--char-color:${color}">
                 <div class="charAura"></div>
                 <div class="charBody"></div>
                 <div class="charHead"></div>
                 <div class="charWeapon"></div>
                 <div class="charStaff"></div>
                 <div class="charBow"></div>
-
             </div>
         `;
 
-        document
-            .getElementById("gameWorld")
-            .appendChild(el);
-
-        remotePlayers[data.id] = el;
+        world.appendChild(el);
+        remotePlayers[id] = el;
+        el.id = "remote_" + id;
     }
 
     el.style.left = `${data.x * TILE_SIZE}px`;
     el.style.top = `${data.y * TILE_SIZE}px`;
+
+    if (!el.parentNode) world.appendChild(el);
+}
+function syncRemotePlayers(serverPlayers) {
+
+    const serverIds = new Set(serverPlayers.map(p => p.id));
+
+    Object.keys(remotePlayers).forEach(id => {
+        if (!serverIds.has(Number(id))) {
+            remotePlayers[id].remove();
+            delete remotePlayers[id];
+        }
+    });
+}
+function showKickPopup(reason) {
+    const popup = document.getElementById("kickPopup");
+    const text = document.getElementById("kickReason");
+
+    text.textContent = reason || "Vous avez été déconnecté de l’instance";
+    popup.style.display = "flex";
+}
+
+function closeKickPopup() {
+    document.getElementById("kickPopup").style.display = "none";
 }
 function cleanupGameUI() {
-
+    Object.values(remotePlayers).forEach(p => p.remove());
+    Object.keys(remotePlayers).forEach(k => delete remotePlayers[k]);
     // =========================
     // MAP
     // =========================

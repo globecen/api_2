@@ -53,7 +53,34 @@ BASE_STATS = {
         "intelligence": 16
     }
 }
+@app.on_event("startup")
+def startup_init():
+    print("🧹 Reset des instances...")
 
+    # 1. clean instances
+    instances = r.smembers("instances")
+
+    for inst_id in instances:
+        r.delete(f"instance:{inst_id}:players")
+
+    r.delete("instances")
+
+    # 2. clean players mapping
+    for k in r.keys("player:*"):
+        r.delete(k)
+
+    # 3. reset compteur (optionnel mais conseillé)
+    r.set("instance_counter", 1)
+
+    # 4. création instance par défaut
+    default_id = 1
+
+    r.sadd("instances", default_id)
+    r.delete(f"instance:{default_id}:players")
+
+    print(f"🆕 Instance par défaut créée: {default_id}")
+
+    print("✅ Startup terminé proprement")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -692,3 +719,30 @@ def get_character(id: int, account_id: int = Depends(get_current_account)):
         "pos_x": char[9],
         "pos_y": char[10]
     }
+    
+@app.get("/instance/players/{instance_id}")
+def get_instance_players(instance_id: int):
+    players = r.smembers(f"instance:{instance_id}:players")
+
+    result = []
+
+    for p in players:
+        char = db.db.execute("""
+            SELECT id, name, class, appearance, pos_x, pos_y
+            FROM characters
+            WHERE account_id = ?
+            LIMIT 1
+        """, [p]).fetchone()
+
+        if char:
+            result.append({
+                "account_id": int(p),
+                "id": char[0],
+                "name": char[1],
+                "class": char[2],
+                "appearance": json.loads(char[3]),
+                "x": char[4] or 2,
+                "y": char[5] or 2
+            })
+
+    return {"players": result}
