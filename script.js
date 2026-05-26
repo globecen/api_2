@@ -509,31 +509,42 @@ function createPlayer() {
     const color =
         selectedCharacter?.appearance?.color || "#ff0000";
 
-    let className = "class-guerrier";
+    // =========================
+    // CLASSE VISUELLE
+    // =========================
+
+    let spriteClass = "class-guerrier";
 
     if (selectedCharacter?.class === "Mage")
-        className = "class-mage";
+        spriteClass = "class-mage";
 
-    if (selectedCharacter?.class === "Archer")
-        className = "class-archer";
+    else if (selectedCharacter?.class === "Archer")
+        spriteClass = "class-archer";
 
-    if (selectedCharacter?.class === "Nécromancien")
-        className = "class-necromancien";
+    else if (selectedCharacter?.class === "Nécromancien")
+        spriteClass = "class-necromancien";
+
+    // =========================
+    // HTML
+    // =========================
 
     el.innerHTML = `
         <div class="playerName">
-            ${selectedCharacter?.name}
+            ${selectedCharacter?.name || "Player"}
         </div>
 
         <div id="playerSprite"
-             class="playerSprite ${className}"
+             class="charSprite ${spriteClass}"
              style="--char-color:${color};">
 
-            <div class="playerHead"></div>
-            <div class="playerBody"></div>
-            <div class="playerLegLeft"></div>
-            <div class="playerLegRight"></div>
+            <div class="charAura"></div>
 
+            <div class="charBody"></div>
+            <div class="charHead"></div>
+
+            <div class="charWeapon"></div>
+            <div class="charStaff"></div>
+            <div class="charBow"></div>
         </div>
     `;
 
@@ -541,6 +552,8 @@ function createPlayer() {
 
     updatePlayer();
 }
+
+ 
 function updateCamera() {
 
     const world = document.getElementById("gameWorld");
@@ -858,29 +871,30 @@ function createOrUpdateRemotePlayer(data) {
         const color =
             data.appearance?.color || "#00aaff";
 
-        let className = "class-guerrier";
-
-        if (data.class === "Mage")
-            className = "class-mage";
-
-        if (data.class === "Archer")
-            className = "class-archer";
-
-        if (data.class === "Nécromancien")
-            className = "class-necromancien";
+        const spriteClass =
+            data.class === "Guerrier"
+                ? "class-guerrier"
+                : data.class === "Mage"
+                    ? "class-mage"
+                    : data.class === "Archer"
+                        ? "class-archer"
+                        : "class-necromancien";
 
         el.innerHTML = `
             <div class="playerName">
                 ${data.name}
             </div>
 
-            <div class="playerSprite ${className}"
+            <div class="charSprite ${spriteClass}"
                  style="--char-color:${color};">
 
-                <div class="playerHead"></div>
-                <div class="playerBody"></div>
-                <div class="playerLegLeft"></div>
-                <div class="playerLegRight"></div>
+                <div class="charAura"></div>
+                <div class="charBody"></div>
+                <div class="charHead"></div>
+                <div class="charWeapon"></div>
+                <div class="charStaff"></div>
+                <div class="charBow"></div>
+
             </div>
         `;
 
