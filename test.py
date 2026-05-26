@@ -100,7 +100,7 @@ def run_bot():
 
 
 if __name__ == "__main__":
-    for i in range(50):
-        print(f"\n=== BOT {i+1}/50 ===")
+    for i in range(200):
+        print(f"\n=== BOT {i+1}/200 ===")
         run_bot()
         time.sleep(0.1)
