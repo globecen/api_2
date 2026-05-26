@@ -8,7 +8,8 @@ let accountId = null;
 let selectedCharacter = null;
 let currentInstanceId = null;
 let ws = null;
-
+let gameWS = null;
+const remotePlayers = {};
 /* =========================
    MAP
 ========================= */
@@ -141,6 +142,14 @@ function moveStep() {
     player.x = next.x;
     player.y = next.y;
     updatePlayer();
+    if (gameWS && gameWS.readyState === WebSocket.OPEN) {
+
+        gameWS.send(JSON.stringify({
+            type: "move",
+            x: player.x,
+            y: player.y
+        }));
+    }
     const sprite = document.getElementById("playerSprite");
     if (sprite) {
         sprite.classList.add("walking");
@@ -151,7 +160,7 @@ function moveStep() {
     }
     scheduleSavePosition();
     setTimeout(moveStep, 120); // vitesse déplacement
-    
+
 }
 /* ------------------------------
    DOM
@@ -490,49 +499,48 @@ function createPlayer() {
 
     const world = document.getElementById("gameWorld");
     if (!world) return;
-    if (!selectedCharacter) {
-        console.warn("No selected character");
-        return;
-    }
+
     let old = document.getElementById("player");
     if (old) old.remove();
 
     const el = document.createElement("div");
     el.id = "player";
 
-    const color = selectedCharacter?.appearance?.color || "#ff0000";
+    const color =
+        selectedCharacter?.appearance?.color || "#ff0000";
 
     let className = "class-guerrier";
-    if (selectedCharacter?.class === "Mage") className = "class-mage";
-    if (selectedCharacter?.class === "Archer") className = "class-archer";
-    if (selectedCharacter?.class === "Nécromancien") className = "class-necromancien";
+
+    if (selectedCharacter?.class === "Mage")
+        className = "class-mage";
+
+    if (selectedCharacter?.class === "Archer")
+        className = "class-archer";
+
+    if (selectedCharacter?.class === "Nécromancien")
+        className = "class-necromancien";
 
     el.innerHTML = `
         <div class="playerName">
-        ${selectedCharacter?.name || "Player"}
-    </div>
+            ${selectedCharacter?.name}
+        </div>
 
-    <div id="playerSprite"
-         class="playerSprite ${className}"
-         style="--char-color:${color};">
+        <div id="playerSprite"
+             class="playerSprite ${className}"
+             style="--char-color:${color};">
 
-        <div class="playerHead"></div>
-        <div class="playerBody"></div>
-        <div class="playerLegLeft"></div>
-        <div class="playerLegRight"></div>
-    </div>
+            <div class="playerHead"></div>
+            <div class="playerBody"></div>
+            <div class="playerLegLeft"></div>
+            <div class="playerLegRight"></div>
+
+        </div>
     `;
 
     world.appendChild(el);
 
-    if (player.x == null) player.x = 2;
-    if (player.y == null) player.y = 2;
-    el.style.background = "rgba(255,0,0,0.3)";
-    el.style.border = "1px solid red";
-    console.log("CLASS:", selectedCharacter?.class);
     updatePlayer();
 }
-
 function updateCamera() {
 
     const world = document.getElementById("gameWorld");
@@ -611,9 +619,10 @@ async function initGame() {
     renderMap();
     createPlayer();
     updatePlayer();
-
+    connectGameWS();
     openChatWebSocket(currentInstanceId);
     loadCharacterStats(selectedCharacter.id);
+    
 }
 window.addEventListener("load", async () => {
     sessionId = localStorage.getItem("sessionId");
@@ -783,8 +792,107 @@ async function joinInstance(id) {
     saveSessionState();
 
     showGame();
+    await initGame();
+}
+function connectGameWS() {
 
-    initGame();
+    if (gameWS)
+        gameWS.close();
+
+    gameWS = new WebSocket(
+        `ws://127.0.0.1:3000/ws/game/${currentInstanceId}/${selectedCharacter.id}`
+    );
+
+    gameWS.onmessage = (event) => {
+
+        const data = JSON.parse(event.data);
+
+        // liste joueurs
+        if (data.type === "players") {
+
+            data.players.forEach(p => {
+
+                // soi-même
+                if (p.id === selectedCharacter.id)
+                    return;
+
+                createOrUpdateRemotePlayer(p);
+            });
+        }
+
+        // mouvement
+        if (data.type === "move") {
+
+            if (data.character_id === selectedCharacter.id)
+                return;
+
+            const p = remotePlayers[data.character_id];
+
+            if (!p) return;
+
+            p.style.left = `${data.x * TILE_SIZE}px`;
+            p.style.top = `${data.y * TILE_SIZE}px`;
+        }
+
+        // déco
+        if (data.type === "disconnect") {
+
+            const p = remotePlayers[data.character_id];
+
+            if (p) {
+                p.remove();
+                delete remotePlayers[data.character_id];
+            }
+        }
+    };
+}
+function createOrUpdateRemotePlayer(data) {
+
+    let el = remotePlayers[data.id];
+
+    if (!el) {
+
+        el = document.createElement("div");
+        el.className = "remotePlayer";
+
+        const color =
+            data.appearance?.color || "#00aaff";
+
+        let className = "class-guerrier";
+
+        if (data.class === "Mage")
+            className = "class-mage";
+
+        if (data.class === "Archer")
+            className = "class-archer";
+
+        if (data.class === "Nécromancien")
+            className = "class-necromancien";
+
+        el.innerHTML = `
+            <div class="playerName">
+                ${data.name}
+            </div>
+
+            <div class="playerSprite ${className}"
+                 style="--char-color:${color};">
+
+                <div class="playerHead"></div>
+                <div class="playerBody"></div>
+                <div class="playerLegLeft"></div>
+                <div class="playerLegRight"></div>
+            </div>
+        `;
+
+        document
+            .getElementById("gameWorld")
+            .appendChild(el);
+
+        remotePlayers[data.id] = el;
+    }
+
+    el.style.left = `${data.x * TILE_SIZE}px`;
+    el.style.top = `${data.y * TILE_SIZE}px`;
 }
 function cleanupGameUI() {
 

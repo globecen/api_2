@@ -9,6 +9,10 @@ from anti_cheat import AntiCheat
 
 AUTH_SERVER = "http://127.0.0.1:3001"
 
+remote_players_connections: dict[int, list[WebSocket]] = {}
+
+# instance_id -> { account_id -> player_data }
+instance_players_state = {}
 app = FastAPI()
 
 db = GameDatabase("game.db")
@@ -226,6 +230,116 @@ def characters_list(account_id: int = Depends(get_current_account)):
         ]
     }
 
+@app.websocket("/ws/game/{instance_id}/{character_id}")
+async def game_ws(
+    websocket: WebSocket,
+    instance_id: int,
+    character_id: int
+):
+    await websocket.accept()
+
+    if instance_id not in remote_players_connections:
+        remote_players_connections[instance_id] = []
+
+    remote_players_connections[instance_id].append(websocket)
+
+    try:
+
+        # récup personnage
+        char = db.db.execute("""
+            SELECT
+                id,
+                name,
+                class,
+                appearance,
+                pos_x,
+                pos_y
+            FROM characters
+            WHERE id = ?
+        """, [character_id]).fetchone()
+
+        if not char:
+            await websocket.close()
+            return
+
+        if instance_id not in instance_players_state:
+            instance_players_state[instance_id] = {}
+
+        # ajout état joueur
+        instance_players_state[instance_id][character_id] = {
+            "id": char[0],
+            "name": char[1],
+            "class": char[2],
+            "appearance": json.loads(char[3]),
+            "x": char[4],
+            "y": char[5]
+        }
+
+        # broadcast spawn
+        payload = {
+            "type": "players",
+            "players": list(instance_players_state[instance_id].values())
+        }
+
+        for ws in remote_players_connections[instance_id]:
+            try:
+                await ws.send_text(json.dumps(payload))
+            except:
+                pass
+
+        # écoute mouvements
+        while True:
+
+            data = await websocket.receive_text()
+            data = json.loads(data)
+
+            if data["type"] == "move":
+
+                x = data["x"]
+                y = data["y"]
+
+                # update mémoire
+                instance_players_state[instance_id][character_id]["x"] = x
+                instance_players_state[instance_id][character_id]["y"] = y
+
+                # broadcast
+                payload = {
+                    "type": "move",
+                    "character_id": character_id,
+                    "x": x,
+                    "y": y
+                }
+
+                for ws in remote_players_connections[instance_id]:
+                    try:
+                        await ws.send_text(json.dumps(payload))
+                    except:
+                        pass
+
+    except WebSocketDisconnect:
+        pass
+
+    finally:
+
+        if websocket in remote_players_connections.get(instance_id, []):
+            remote_players_connections[instance_id].remove(websocket)
+
+        # suppression joueur
+        if instance_id in instance_players_state:
+            if character_id in instance_players_state[instance_id]:
+                del instance_players_state[instance_id][character_id]
+
+        payload = {
+            "type": "disconnect",
+            "character_id": character_id
+        }
+
+        for ws in remote_players_connections.get(instance_id, []):
+            try:
+                await ws.send_text(json.dumps(payload))
+            except:
+                pass
+            
 @app.post("/characters")
 def create_character(payload: CharacterCreate, account_id: int = Depends(get_current_account)):
     name = payload.name.strip()
