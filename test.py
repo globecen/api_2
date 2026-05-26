@@ -3,8 +3,8 @@ import random
 import string
 import time
 
-AUTH = "http://127.0.0.1:3001"
-GAME = "http://127.0.0.1:3000"
+AUTH = "http://85.69.92.4:3001"
+GAME = "http://85.69.92.4:3000"
 
 INSTANCE_ID = 1  # change si besoin
 

@@ -877,7 +877,7 @@ function connectGameWS() {
     if (!currentInstanceId || !selectedCharacter) return;
 
     gameWS = new WebSocket(
-        `ws://127.0.0.1:3000/ws/game/${currentInstanceId}/${selectedCharacter.id}`
+        `ws://85.69.92.4:3000/ws/game/${currentInstanceId}/${selectedCharacter.id}`
     );
 
     gameWS.onopen = () => {
@@ -1081,7 +1081,7 @@ function cleanupGameUI() {
 function openChatWebSocket(instanceId) {
     if (chatWS) chatWS.close();
 
-    chatWS = new WebSocket(`ws://127.0.0.1:3000/ws/chat/${instanceId}`);
+    chatWS = new WebSocket(`ws://85.69.92.4:3000/ws/chat/${instanceId}`);
 
     const chatBox = document.getElementById("chatBox");
     chatBox.innerHTML = "";
@@ -1170,7 +1170,7 @@ async function leaveInstance() {
 function connectWebSocket() {
     if (ws) ws.close();
 
-    ws = new WebSocket("ws://127.0.0.1:3000/ws/instances");
+    ws = new WebSocket("ws://85.69.92.4:3000/ws/instances");
 }
 
 showLogin();
