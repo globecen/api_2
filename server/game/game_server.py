@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import requests, json
 import redis
 
-from model.GameDatabase import GameDatabase
+from GameDatabase import GameDatabase
 from anti_cheat import AntiCheat
 
 AUTH_SERVER = "http://auth:3001"
