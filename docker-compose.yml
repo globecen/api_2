@@ -1,0 +1,68 @@
+services:
+
+  # ---------------- FRONT ----------------
+  front:
+    image: front:latest
+    container_name: front
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+    depends_on:
+      - auth
+      - game
+    networks:
+      - app-network
+
+  # ---------------- AUTH SERVER ----------------
+  auth:
+    image: auth:latest
+    container_name: auth_server
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+    depends_on:
+      - redis
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    networks:
+      - app-network
+
+  # ---------------- GAME SERVER ----------------
+  game:
+    image: game:latest
+    container_name: game_server
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - auth
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - AUTH_URL=http://auth:3001
+    networks:
+      - app-network
+
+  # ---------------- REDIS ----------------
+  redis:
+    image: redis:7-alpine
+    container_name: redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+
+# ---------------- NETWORKS ----------------
+networks:
+  app-network:
+    driver: bridge
+
+# ---------------- VOLUMES ----------------
+volumes:
+  redis_data:

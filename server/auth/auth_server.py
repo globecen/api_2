@@ -27,7 +27,7 @@ def startup_event():
 db = AuthDatabase("auth.db")
 
 # Redis
-r = redis.Redis(host="127.0.0.1", port=6379, decode_responses=True)
+r = redis.Redis(host="redis", port=6379, decode_responses=True)
 
 SESSION_DURATION = 86400  # 24h
 

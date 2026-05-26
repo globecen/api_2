@@ -7,7 +7,7 @@ import redis
 from model.GameDatabase import GameDatabase
 from anti_cheat import AntiCheat
 
-AUTH_SERVER = "http://127.0.0.1:3001"
+AUTH_SERVER = "http://auth:3001"
 
 remote_players_connections: dict[int, list[WebSocket]] = {}
 
@@ -32,7 +32,7 @@ db = GameDatabase("game.db")
 anti_cheat = AntiCheat()
 
 # Redis
-r = redis.Redis(host="127.0.0.1", port=6379, decode_responses=True)
+r = redis.Redis(host="redis", port=6379, decode_responses=True)
 chat_connections: dict[int, list[WebSocket]] = {}
 
 MAX_PLAYERS = 10

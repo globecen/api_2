@@ -1,7 +1,7 @@
 let chatWS = null;
 
-const AUTH = "http://127.0.0.1:3001";
-const GAME = "http://127.0.0.1:3000";
+const AUTH = "http://auth:3001";
+const GAME = "http://game:3000";
 
 let sessionId = null;
 let accountId = null;
