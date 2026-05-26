@@ -934,36 +934,7 @@ function connectGameWS() {
     };
 }
 
-function forceReturnToCharacterSelect() {
 
-    if (gameWS) {
-        gameWS.onmessage = null;
-        gameWS.onclose = null;
-        gameWS.close();
-        gameWS = null;
-    }
-
-    if (chatWS) {
-        chatWS.close();
-        chatWS = null;
-    }
-
-    leaveInstance();
-
-    cleanupGameUI();
-
-    currentInstanceId = null;
-    selectedCharacter = null;
-
-    player.x = null;
-    player.y = null;
-
-    Object.values(remotePlayers).forEach(p => p.remove());
-    Object.keys(remotePlayers).forEach(k => delete remotePlayers[k]);
-
-    showCharacters();
-    loadCharacters();
-}
 function createOrUpdateRemotePlayer(data) {
 
     let el = remotePlayers[data.id ?? data.character_id];
