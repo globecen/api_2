@@ -658,7 +658,7 @@ window.addEventListener("load", async () => {
     accountId = info.account_id;
 
     connectWebSocket();
-
+    
     const res = await fetch(`${GAME}/me/state`, {
         headers: { Authorization: "Session " + sessionId }
     });

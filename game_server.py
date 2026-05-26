@@ -621,6 +621,52 @@ async def admin_send_chat(instance_id: int, payload: dict = Body(...)):
             chat_connections[instance_id].remove(ws)
 
     return {"success": True}
+@app.get("/me/state")
+def get_my_state(account_id: int = Depends(get_current_account)):
+
+    # instance actuelle
+    inst = r.get(f"player:{account_id}")
+
+    if not inst:
+        return {
+            "in_instance": False
+        }
+
+    # personnage du compte
+    char = db.db.execute("""
+        SELECT
+            id,
+            name,
+            class,
+            appearance,
+            level,
+            pos_x,
+            pos_y
+        FROM characters
+        WHERE account_id = ?
+        LIMIT 1
+    """, [account_id]).fetchone()
+
+    if not char:
+        return {
+            "in_instance": False
+        }
+
+    return {
+        "in_instance": True,
+
+        "instance_id": int(inst),
+
+        "character": {
+            "id": char[0],
+            "name": char[1],
+            "class": char[2],
+            "appearance": json.loads(char[3]),
+            "level": char[4],
+            "pos_x": char[5],
+            "pos_y": char[6]
+        }
+    }
 @app.get("/character/{id}")
 def get_character(id: int, account_id: int = Depends(get_current_account)):
     char = db.db.execute("""
