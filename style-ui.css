@@ -1,180 +1,271 @@
-:root {
-    --char-color: #ff0000;
-}
-
-body {
-    font-family: Arial, sans-serif;
-    background: #1e1e1e;
-    color: #eee;
-    margin: 0;
-    padding: 20px;
-}
-
-h1, h2 {
-    color: #4fc3f7;
-}
-
-.panel {
-    background: #2b2b2b;
-    padding: 20px;
-    border-radius: 8px;
-    max-width: 450px;
-    margin-bottom: 20px;
-}
-
-input, select, button {
-    width: 100%;
-    padding: 10px;
-    margin-top: 10px;
-    border-radius: 5px;
-    border: none;
-}
-
-input, select {
-    background: #444;
-    color: #fff;
-}
-
-button {
-    background: #4fc3f7;
-    cursor: pointer;
-}
-
-button:hover {
-    background: #81d4fa;
-}
-
-.instanceBox {
-    background: #333;
-    padding: 10px;
-    border-radius: 6px;
-    margin-top: 10px;
+:root{
+    --char-color:#ff0000;
 }
 
 /* =========================
-   PREVIEW CHARACTER
+   GLOBAL
 ========================= */
 
-#previewBox {
-    margin-top: 10px;
-    padding: 10px;
-    background: #1b1b1b;
-    border-radius: 10px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+*{
+    box-sizing:border-box;
 }
 
-.charSprite {
-    width: 80px;
-    height: 80px;
-    position: relative;
-    border-radius: 10px;
-    background: radial-gradient(circle at 50% 80%, rgba(0,0,0,0.8), transparent);
-    animation: float 1.2s ease-in-out infinite alternate;
+body{
+    margin:0;
+    padding:20px;
+
+    font-family:Arial,sans-serif;
+
+    background:#1e1e1e;
+    color:#eee;
 }
 
-@keyframes float {
-    from { transform: translateY(2px); }
-    to { transform: translateY(-4px); }
+h1,h2,h3{
+    color:#4fc3f7;
 }
 
-.charBody {
-    position: absolute;
-    bottom: 10px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 26px;
-    height: 36px;
-    border-radius: 8px;
-    background: var(--char-color);
-    box-shadow: 0 0 8px var(--char-color);
+/* =========================
+   PANELS
+========================= */
+
+.panel{
+    background:#2b2b2b;
+
+    padding:20px;
+
+    border-radius:10px;
+
+    max-width:450px;
+
+    margin-bottom:20px;
 }
 
-.charHead {
-    position: absolute;
-    bottom: 46px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: #f5e0c8;
+input,
+select,
+button{
+    width:100%;
+
+    padding:10px;
+
+    margin-top:10px;
+
+    border:none;
+
+    border-radius:6px;
+}
+
+input,
+select{
+    background:#444;
+    color:#fff;
+}
+
+button{
+    background:#4fc3f7;
+    color:white;
+
+    cursor:pointer;
+
+    transition:0.2s;
+}
+
+button:hover{
+    background:#81d4fa;
+}
+
+.dangerBtn{
+    background:#e53935;
+}
+
+/* =========================
+   CHARACTER PREVIEW
+========================= */
+
+#previewBox{
+    margin-top:15px;
+
+    padding:15px;
+
+    background:#1b1b1b;
+
+    border-radius:10px;
+
+    display:flex;
+    align-items:center;
+    gap:15px;
+}
+
+.charSprite{
+    position:relative;
+
+    width:80px;
+    height:80px;
+
+    border-radius:10px;
+
+    background:
+        radial-gradient(
+            circle at 50% 80%,
+            rgba(0,0,0,0.8),
+            transparent
+        );
+
+    animation:float 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes float{
+    from{
+        transform:translateY(2px);
+    }
+
+    to{
+        transform:translateY(-4px);
+    }
+}
+
+.charBody{
+    position:absolute;
+
+    width:26px;
+    height:36px;
+
+    left:50%;
+    bottom:10px;
+
+    transform:translateX(-50%);
+
+    border-radius:8px;
+
+    background:var(--char-color);
+
+    box-shadow:0 0 8px var(--char-color);
+}
+
+.charHead{
+    position:absolute;
+
+    width:20px;
+    height:20px;
+
+    left:50%;
+    bottom:46px;
+
+    transform:translateX(-50%);
+
+    border-radius:50%;
+
+    background:#f5e0c8;
 }
 
 .charWeapon,
 .charStaff,
 .charBow,
-.charAura {
-    position: absolute;
+.charAura{
+    position:absolute;
 }
 
 /* =========================
    CLASSES
 ========================= */
 
-.class-guerrier .charWeapon {
-    width: 6px;
-    height: 30px;
-    background: #c0c0c0;
-    right: 8px;
-    bottom: 14px;
-    border-radius: 3px;
-    box-shadow: 0 0 4px #c0c0c0;
+/* Guerrier */
+
+.class-guerrier .charWeapon{
+    width:6px;
+    height:30px;
+
+    right:8px;
+    bottom:14px;
+
+    border-radius:3px;
+
+    background:#c0c0c0;
+
+    box-shadow:0 0 4px #c0c0c0;
 }
 
-.class-mage .charStaff {
-    width: 6px;
-    height: 34px;
-    background: #8b5a2b;
-    right: 10px;
-    bottom: 12px;
-    border-radius: 3px;
-    box-shadow: 0 0 4px #8b5a2b;
+/* Mage */
+
+.class-mage .charStaff{
+    width:6px;
+    height:34px;
+
+    right:10px;
+    bottom:12px;
+
+    border-radius:3px;
+
+    background:#8b5a2b;
 }
 
-.class-mage .charStaff::before {
-    content: "";
-    position: absolute;
-    top: -6px;
-    left: -4px;
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: rgba(120, 200, 255, 0.9);
-    box-shadow: 0 0 8px rgba(120, 200, 255, 1);
+.class-mage .charStaff::before{
+    content:"";
+
+    position:absolute;
+
+    width:14px;
+    height:14px;
+
+    top:-6px;
+    left:-4px;
+
+    border-radius:50%;
+
+    background:rgba(120,200,255,0.9);
+
+    box-shadow:0 0 8px rgba(120,200,255,1);
 }
 
-.class-archer .charBow {
-    width: 4px;
-    height: 34px;
-    border-radius: 20px;
-    border: 2px solid #c28f4c;
-    right: 6px;
-    bottom: 12px;
-    box-shadow: 0 0 4px #c28f4c;
+/* Archer */
+
+.class-archer .charBow{
+    width:4px;
+    height:34px;
+
+    right:6px;
+    bottom:12px;
+
+    border:2px solid #c28f4c;
+
+    border-radius:20px;
+
+    box-shadow:0 0 4px #c28f4c;
 }
 
-.class-necromancien .charAura {
-    width: 60px;
-    height: 60px;
-    border-radius: 50%;
-    left: 50%;
-    bottom: 6px;
-    transform: translateX(-50%);
-    background: radial-gradient(circle, rgba(150,0,200,0.5), transparent);
-    box-shadow: 0 0 12px rgba(150,0,200,0.9);
-    animation: pulse 1.4s ease-in-out infinite alternate;
+/* Nécromancien */
+
+.class-necromancien .charAura{
+    width:60px;
+    height:60px;
+
+    left:50%;
+    bottom:6px;
+
+    transform:translateX(-50%);
+
+    border-radius:50%;
+
+    background:
+        radial-gradient(
+            circle,
+            rgba(150,0,200,0.5),
+            transparent
+        );
+
+    box-shadow:0 0 12px rgba(150,0,200,0.9);
+
+    animation:pulse 1.4s ease-in-out infinite alternate;
 }
 
-@keyframes pulse {
-    from {
-        transform: translateX(-50%) scale(0.95);
-        opacity: 0.8;
+@keyframes pulse{
+    from{
+        transform:translateX(-50%) scale(0.95);
+        opacity:0.8;
     }
-    to {
-        transform: translateX(-50%) scale(1.05);
-        opacity: 1;
+
+    to{
+        transform:translateX(-50%) scale(1.05);
+        opacity:1;
     }
 }
 
@@ -182,58 +273,314 @@ button:hover {
    CHARACTER LIST
 ========================= */
 
-.characterItem {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    background: #2a2a2a;
-    padding: 10px;
-    border-radius: 8px;
-    margin-bottom: 10px;
-    cursor: pointer;
+.characterItem{
+    display:flex;
+    align-items:center;
+    gap:15px;
+
+    margin-bottom:10px;
+
+    padding:10px;
+
+    border-radius:8px;
+
+    background:#2a2a2a;
+
+    cursor:pointer;
+
+    transition:0.2s;
 }
 
-.characterItem:hover {
-    background: #3a3a3a;
+.characterItem:hover{
+    background:#3a3a3a;
 }
 
-/* MINI SPRITE FIXÉ */
-.characterMiniSprite {
-    width: 48px;
+.characterMiniSprite{
+    width:48px;
+    height:48px;
+
+    flex-shrink:0;
+}
+
+.characterItem .charSprite{
+    width:48px;
+    height:48px;
+
+    transform:scale(0.6);
+    transform-origin:center;
+}
+
+.characterItem .charBody{
+    width:18px;
+    height:24px;
+}
+
+.characterItem .charHead{
+    width:14px;
+    height:14px;
+
+    bottom:34px;
+}
+
+/* =========================
+   GAME PANEL MMORPG
+========================= */
+/* =========================
+   GAME LAYOUT FIX MMO
+========================= */
+
+#gamePanel{
+    width:100%;
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+    background:#0e0f12;
+}
+
+/* =========================
+   TOP: MAP (2/3 écran)
+========================= */
+
+#mapContainer{
+    width:100%;
+    height:70vh; /* 🔥 plus propre que 75 */
+    background: radial-gradient(circle at center, #1a2a1a, #0b0c10);
+    overflow:hidden;
+    border-bottom:3px solid #222;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;     
+}
+
+/* MAP WORLD */
+#gameWorld {
+    position: absolute;
+    z-index: 1;
+    width: 2000px;
+    height: 2000px;
+    transform-origin: top left;
+}
+
+/* =========================
+   TILE DESIGN (refonte totale)
+========================= */
+
+.tile{
+    position:absolute;
+    width:32px;
+    height:32px;
+    border-radius:4px;
+}
+
+/* sol */
+.ground{
+    background:
+        linear-gradient(135deg,#2f6b3a,#24522d);
+    box-shadow:
+        inset 0 0 6px rgba(255,255,255,0.05);
+}
+
+/* mur */
+.wall{
+    background:
+        linear-gradient(135deg,#3a3a3a,#1f1f1f);
+    box-shadow:
+        inset 0 0 4px rgba(255,255,255,0.1),
+        inset 0 -4px 8px rgba(0,0,0,0.6);
+}
+
+/* eau */
+.water{
+    background: linear-gradient(180deg,#1e88e5,#0d47a1);
+    animation: waterMove 2s infinite;
+}
+
+@keyframes waterMove{
+    0%{ filter:brightness(1); }
+    50%{ filter:brightness(1.3); }
+    100%{ filter:brightness(1); }
+}
+
+/* arbres */
+.tree{
+    background:#1b5e20;
+    border-radius:6px;
+    box-shadow:0 0 8px rgba(0,0,0,0.5);
+}
+
+/* =========================
+   PLAYER
+========================= */
+
+#player {
+    position: absolute;
+    width: 32px;
+    height: 48px;
+    z-index: 9999;
+}
+
+.playerSprite {
+    width: 32px;
     height: 48px;
     position: relative;
-    flex-shrink: 0;
+    z-index: 99999;
+}
+.playerName{
+    position:absolute;
+    top:-18px;
+    left:50%;
+    transform:translateX(-50%);
+    font-size:11px;
+    color:white;
+    text-shadow:0 0 4px black;
+    white-space:nowrap;
+    z-index:100000;
 }
 
-/* version mini du sprite */
-.characterItem .charSprite {
-    width: 48px;
-    height: 48px;
-    transform: scale(0.6);
-    transform-origin: center;
+/* =========================
+   MINIMAP (plus clean)
+========================= */
+
+#miniMap{
+    position:absolute;
+    top:15px;
+    right:15px;
+    width:200px;
+    height:130px;
+    border-radius:12px;
+    background:rgba(0,0,0,0.6);
+    border:1px solid rgba(255,255,255,0.1);
+    overflow:hidden;
 }
 
-/* ajustements mini */
-.characterItem .charBody {
-    width: 18px;
-    height: 24px;
+/* =========================
+   HUD (35%)
+========================= */
+
+#bottomUI{
+    width:100%;
+    height:35vh;
+
+    display:flex;
+    gap:12px;
+
+    padding:12px;
+
+    background:linear-gradient(180deg,#1a1a1a,#121212);
+
+    overflow:hidden;
 }
 
-.characterItem .charHead {
-    width: 14px;
-    height: 14px;
-    bottom: 34px;
+/* =========================
+   CHAT PANEL
+========================= */
+
+#chatSection{
+    flex:2;
+
+    display:flex;
+    flex-direction:column;
+
+    background:#151515;
+    border:1px solid #2a2a2a;
+    border-radius:12px;
+
+    padding:10px;
 }
 
-/* HUD */
-#hud {
-    background: #111;
-    padding: 10px;
-    border-radius: 8px;
-    margin-top: 10px;
-    font-size: 0.9rem;
+#chatBox{
+    flex:1;
+    overflow-y:auto;
+
+    background:#0e0e0e;
+    border-radius:8px;
+
+    padding:8px;
+
+    font-size:13px;
+    line-height:1.4;
 }
 
-#hud span.label {
-    color: #81d4fa;
+/* =========================
+   HUD PANEL (NEW STYLE)
+========================= */
+
+#hudSection{
+    flex:1;
+
+    display:flex;
+    flex-direction:column;
+
+    background:#151515;
+    border:1px solid #2a2a2a;
+    border-radius:12px;
+
+    padding:10px;
+}
+
+/* TITLE */
+#hudSection h3{
+    margin:0 0 8px 0;
+    font-size:14px;
+    color:#4fc3f7;
+}
+
+/* HUD CONTENT GRID */
+#hud{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+
+    gap:8px;
+
+    font-size:13px;
+}
+
+/* HUD CARDS */
+#hud div{
+    background:#0f0f0f;
+    border:1px solid #222;
+    border-radius:8px;
+
+    padding:6px 8px;
+
+    display:flex;
+    justify-content:space-between;
+
+    color:#ccc;
+}
+
+/* LABELS */
+#hud div span{
+    color:#81d4fa;
+    font-weight:bold;
+}
+
+/* =========================
+   OPTIONS PANEL
+========================= */
+
+#optionsSection{
+    flex:0.8;
+
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+
+    background:#151515;
+    border:1px solid #2a2a2a;
+    border-radius:12px;
+
+    padding:10px;
+}
+
+/* BUTTONS STYLE IMPROVEMENT */
+#optionsSection button{
+    background:#222;
+    border:1px solid #333;
+
+    transition:0.2s;
+}
+
+#optionsSection button:hover{
+    background:#333;
 }

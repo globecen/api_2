@@ -9,6 +9,149 @@ let selectedCharacter = null;
 let currentInstanceId = null;
 let ws = null;
 
+/* =========================
+   MAP
+========================= */
+
+const TILE_SIZE = 32;
+
+let currentMapX = 0;
+let currentMapY = 0;
+
+const MAP_WIDTH = 25;
+const MAP_HEIGHT = 18;
+
+const MAPS = {};
+
+const player = {
+    x: 5,
+    y: 5
+};
+
+function getNodeKey(x, y) {
+    return `${x}_${y}`;
+}
+
+function heuristic(a, b) {
+    return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+}
+
+function getNeighbors(x, y, map) {
+    const dirs = [
+        { x: 1, y: 0 },
+        { x: -1, y: 0 },
+        { x: 0, y: 1 },
+        { x: 0, y: -1 }
+    ];
+
+    const res = [];
+
+    for (const d of dirs) {
+        const nx = x + d.x;
+        const ny = y + d.y;
+
+        if (!map[ny] || map[ny][nx] === 1) continue;
+
+        res.push({ x: nx, y: ny });
+    }
+
+    return res;
+}
+
+function findPath(start, end, map) {
+    const open = [];
+    const closed = new Set();
+
+    open.push({
+        x: start.x,
+        y: start.y,
+        g: 0,
+        f: 0,
+        parent: null
+    });
+
+    while (open.length > 0) {
+
+        // node avec f le plus bas
+        open.sort((a, b) => a.f - b.f);
+        const current = open.shift();
+
+        if (current.x === end.x && current.y === end.y) {
+            // reconstruction chemin
+            const path = [];
+            let c = current;
+
+            while (c) {
+                path.push({ x: c.x, y: c.y });
+                c = c.parent;
+            }
+
+            return path.reverse();
+        }
+
+        closed.add(getNodeKey(current.x, current.y));
+
+        const neighbors = getNeighbors(current.x, current.y, map);
+
+        for (const n of neighbors) {
+
+            const key = getNodeKey(n.x, n.y);
+            if (closed.has(key)) continue;
+
+            const g = current.g + 1;
+            const h = heuristic(n, end);
+            const f = g + h;
+
+            const existing = open.find(o => o.x === n.x && o.y === n.y);
+
+            if (!existing) {
+                open.push({
+                    x: n.x,
+                    y: n.y,
+                    g,
+                    f,
+                    parent: current
+                });
+            }
+        }
+    }
+
+    return [];
+}
+let path = [];
+let moving = false;
+
+function moveStep() {
+    if (!path.length) {
+        moving = false;
+        return;
+    }
+
+    const next = path.shift();
+
+    player.x = next.x;
+    player.y = next.y;
+    localStorage.setItem("playerX", player.x);
+    localStorage.setItem("playerY", player.y);
+    updatePlayer();
+
+    const sprite = document.getElementById("playerSprite");
+    if (sprite) {
+        sprite.classList.add("walking");
+
+        setTimeout(() => {
+            sprite.classList.remove("walking");
+        }, 150);
+    }
+
+    setTimeout(moveStep, 120); // vitesse déplacement
+    const charId = selectedCharacter?.id;
+
+    if (charId) {
+        localStorage.setItem(`playerX_${charId}`, player.x);
+        localStorage.setItem(`playerY_${charId}`, player.y);
+    }
+}
 /* ------------------------------
    DOM
 ------------------------------ */
@@ -80,21 +223,42 @@ async function logout() {
         ws = null;
     }
 
-    await leaveInstance(); // 👈 IMPORTANT
+    await leaveInstance();
 
     sessionId = null;
     accountId = null;
     selectedCharacter = null;
     currentInstanceId = null;
+
+    // 🔥 RESET POSITION
+    Object.keys(localStorage).forEach(key => {
+        if (key.startsWith("playerX_") || key.startsWith("playerY_")) {
+            localStorage.removeItem(key);
+        }
+    });
+
     localStorage.clear();
+
+    cleanupGameUI();
     showLogin();
 }
 
+function getPlayerStorageKey() {
+    if (!selectedCharacter?.id) return null;
+    return selectedCharacter.id;
+}
 function saveSessionState() {
-    if (sessionId) localStorage.setItem("sessionId", sessionId);
-    if (accountId) localStorage.setItem("accountId", accountId);
-    if (selectedCharacter) localStorage.setItem("selectedCharacter", JSON.stringify(selectedCharacter));
-    if (currentInstanceId) localStorage.setItem("currentInstanceId", currentInstanceId);
+    localStorage.setItem("sessionId", sessionId);
+    localStorage.setItem("accountId", accountId);
+
+    if (selectedCharacter)
+        localStorage.setItem("selectedCharacter", JSON.stringify(selectedCharacter));
+
+    if (currentInstanceId)
+        localStorage.setItem("currentInstanceId", currentInstanceId);
+
+    localStorage.setItem("playerX", player.x);
+    localStorage.setItem("playerY", player.y);
 }
 
 /* ------------------------------
@@ -178,9 +342,9 @@ async function loadCharacters() {
     data.characters.forEach(c => {
         const spriteClass =
             c.class === "Guerrier" ? "class-guerrier" :
-            c.class === "Mage" ? "class-mage" :
-            c.class === "Archer" ? "class-archer" :
-            "class-necromancien";
+                c.class === "Mage" ? "class-mage" :
+                    c.class === "Archer" ? "class-archer" :
+                        "class-necromancien";
 
         const color = c.appearance?.color || "#ff0000";
 
@@ -252,10 +416,234 @@ async function createCharacter() {
     await loadCharacters();
 }
 
+function generateMap(w, h) {
+
+    const map = [];
+
+    for (let y = 0; y < h; y++) {
+
+        const row = [];
+
+        for (let x = 0; x < w; x++) {
+
+            // murs bords
+            if (
+                x === 0 ||
+                y === 0 ||
+                x === w - 1 ||
+                y === h - 1
+            ) {
+                row.push(1);
+            } else {
+                row.push(0);
+            }
+        }
+
+        map.push(row);
+    }
+
+    return map;
+}
+function renderMap() {
+
+    const world = document.getElementById("gameWorld");
+    if (!world) return;
+
+    world.innerHTML = "";
+
+    const key = `${currentMapX}_${currentMapY}`;
+
+    if (!MAPS[key]) {
+        MAPS[key] = generateMap(MAP_WIDTH, MAP_HEIGHT);
+    }
+
+    const map = MAPS[key];
+
+    for (let y = 0; y < map.length; y++) {
+        for (let x = 0; x < map[y].length; x++) {
+
+            const tile = document.createElement("div");
+            tile.className = "tile " + (map[y][x] === 1 ? "wall" : "ground");
+
+            tile.style.left = (x * TILE_SIZE) + "px";
+            tile.style.top = (y * TILE_SIZE) + "px";
+
+            world.appendChild(tile);
+        }
+    }
+}
+function createPlayer() {
+
+    const world = document.getElementById("gameWorld");
+    if (!world) return;
+    if (!selectedCharacter) {
+        console.warn("No selected character");
+        return;
+    }
+    let old = document.getElementById("player");
+    if (old) old.remove();
+
+    const el = document.createElement("div");
+    el.id = "player";
+
+    const color = selectedCharacter?.appearance?.color || "#ff0000";
+
+    let className = "class-guerrier";
+    if (selectedCharacter?.class === "Mage") className = "class-mage";
+    if (selectedCharacter?.class === "Archer") className = "class-archer";
+    if (selectedCharacter?.class === "Nécromancien") className = "class-necromancien";
+
+    el.innerHTML = `
+        <div class="playerName">
+        ${selectedCharacter?.name || "Player"}
+    </div>
+
+    <div id="playerSprite"
+         class="playerSprite ${className}"
+         style="--char-color:${color};">
+
+        <div class="playerHead"></div>
+        <div class="playerBody"></div>
+        <div class="playerLegLeft"></div>
+        <div class="playerLegRight"></div>
+    </div>
+    `;
+
+    world.appendChild(el);
+
+    if (player.x == null) player.x = 2;
+    if (player.y == null) player.y = 2;
+    el.style.background = "rgba(255,0,0,0.3)";
+    el.style.border = "1px solid red";
+    console.log("CLASS:", selectedCharacter?.class);
+    updatePlayer();
+}
+
+function updateCamera() {
+
+    const world = document.getElementById("gameWorld");
+    const container = document.getElementById("mapContainer");
+
+    if (!world || !container) return;
+
+    const centerX = container.clientWidth / 2;
+    const centerY = container.clientHeight / 2;
+
+    const offsetX = centerX - (player.x * TILE_SIZE);
+    const offsetY = centerY - (player.y * TILE_SIZE);
+
+    world.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
+}
+function updatePlayer() {
+    const el = document.getElementById("player");
+    if (!el) return;
+
+    el.style.left = `${player.x * TILE_SIZE}px`;
+    el.style.top = `${player.y * TILE_SIZE}px`;
+
+    updateCamera();
+}
+document.addEventListener("click", e => {
+
+    if (gamePanel.style.display === "none") return;
+
+    const world = document.getElementById("gameWorld");
+    if (!world || !world.contains(e.target)) return;
+
+    const rect = world.getBoundingClientRect();
+
+    const target = {
+        x: Math.floor((e.clientX - rect.left) / TILE_SIZE),
+        y: Math.floor((e.clientY - rect.top) / TILE_SIZE)
+    };
+
+    const map = MAPS[`${currentMapX}_${currentMapY}`];
+    if (!map) return;
+
+    if (map[target.y][target.x] === 1) return;
+
+    const start = { x: player.x, y: player.y };
+
+    path = findPath(start, target, map);
+
+    if (path.length > 0) {
+        path.shift(); // retire position actuelle
+        moving = true;
+        moveStep();
+    }
+});
 /* ------------------------------
    PREVIEW
 ------------------------------ */
+function initGame() {
+    const charId = selectedCharacter?.id;
 
+    if (charId) {
+        const savedX = localStorage.getItem(`playerX_${charId}`);
+        const savedY = localStorage.getItem(`playerY_${charId}`);
+
+        if (savedX !== null && savedY !== null) {
+            player.x = parseInt(savedX);
+            player.y = parseInt(savedY);
+        }
+    }
+    if (!currentInstanceId) return;
+    if (!selectedCharacter) return;
+
+    showGame();
+
+    const key = `${currentMapX}_${currentMapY}`;
+
+    if (!MAPS[key]) {
+        MAPS[key] = generateMap(MAP_WIDTH, MAP_HEIGHT);
+    }
+
+    // 🔥 NE PAS écraser si déjà existant
+    if (player.x == null || player.y == null) {
+        player.x = 2;
+        player.y = 2;
+    }
+
+    renderMap();
+    createPlayer();
+    updatePlayer();
+
+    if (currentInstanceId) {
+        openChatWebSocket(currentInstanceId);
+        loadCharacterStats(selectedCharacter.id);
+    }
+}
+window.addEventListener("load", async () => {
+    const savedX = localStorage.getItem("playerX");
+    const savedY = localStorage.getItem("playerY");
+
+    if (savedX !== null && savedY !== null) {
+        player.x = parseInt(savedX);
+        player.y = parseInt(savedY);
+    }
+    sessionId = localStorage.getItem("sessionId");
+    accountId = localStorage.getItem("accountId");
+
+    const savedChar = localStorage.getItem("selectedCharacter");
+    if (savedChar) selectedCharacter = JSON.parse(savedChar);
+
+    const savedInstance = localStorage.getItem("currentInstanceId");
+    if (savedInstance) currentInstanceId = parseInt(savedInstance);
+
+    if (!sessionId) {
+        showLogin();
+        return;
+    }
+
+    connectWebSocket();
+
+    // 🔥 important : attendre que les données soient prêtes
+    if (currentInstanceId && selectedCharacter) {
+        initGame();
+    } else {
+        loadCharacters();
+    }
+});
 function updatePreview() {
     const color = charColor.value;
     const name = charName.value.trim() || "(vide)";
@@ -287,7 +675,12 @@ function updatePreview() {
 ------------------------------ */
 
 function selectCharacter(character) {
+
     selectedCharacter = character;
+
+    // reset position ancienne
+    localStorage.removeItem(`playerX_${character.id}`);
+    localStorage.removeItem(`playerY_${character.id}`);
 
     localStorage.setItem("selectedCharacterId", character.id);
     localStorage.setItem("selectedCharacter", JSON.stringify(character));
@@ -353,7 +746,9 @@ async function joinInstance(id) {
     localStorage.setItem("currentInstanceId", id);
     saveSessionState();
     showGame();
-
+    renderMap();
+    createPlayer();
+    updatePlayer();
     openChatWebSocket(id);
 
     // 👇 AJOUT ICI
@@ -361,6 +756,88 @@ async function joinInstance(id) {
     if (charId) {
         loadCharacterStats(charId);
     }
+
+}
+function cleanupGameUI() {
+
+    // =========================
+    // MAP
+    // =========================
+
+    const world =
+        document.getElementById("gameWorld");
+
+    if (world) {
+        world.innerHTML = "";
+    }
+
+    // =========================
+    // CHAT
+    // =========================
+
+    const chatBox =
+        document.getElementById("chatBox");
+
+    if (chatBox) {
+        chatBox.innerHTML = "";
+    }
+
+    const chatInput =
+        document.getElementById("chatInput");
+
+    if (chatInput) {
+        chatInput.value = "";
+    }
+
+    // =========================
+    // HUD
+    // =========================
+
+    const hudIds = [
+        "hudName",
+        "hudClass",
+        "hudLevel",
+        "hudHp",
+        "hudMana",
+        "hudStr",
+        "hudAgi",
+        "hudInt"
+    ];
+
+    hudIds.forEach(id => {
+
+        const el =
+            document.getElementById(id);
+
+        if (el)
+            el.textContent = "";
+    });
+
+    // =========================
+    // PLAYER
+    // =========================
+
+    const player =
+        document.getElementById("player");
+
+    if (player) {
+        player.remove();
+    }
+
+    // =========================
+    // REMOTE PLAYERS
+    // =========================
+
+    document
+        .querySelectorAll(".remotePlayer")
+        .forEach(p => p.remove());
+
+    // =========================
+    // RESET MAP
+    // =========================
+
+    currentMapX = 0;
+    currentMapY = 0;
 }
 /* ------------------------------
    CHAT
@@ -402,6 +879,7 @@ function returnToCharacterSelect() {
         chatWS = null;
     }
     leaveInstance();
+    cleanupGameUI();
     localStorage.removeItem("currentInstanceId");
     loadCharacters();
 }
