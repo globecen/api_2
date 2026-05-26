@@ -3,7 +3,7 @@ import duckdb
 con = duckdb.connect("game.db")
 
 # ----------------------------
-# CHARACTERS TABLE (SIMPLE + SAFE)
+# CHARACTERS TABLE (SIMPLE + SAFE + POSITION)
 # ----------------------------
 con.execute("""
 CREATE TABLE IF NOT EXISTS characters (
@@ -14,6 +14,10 @@ CREATE TABLE IF NOT EXISTS characters (
     xp INTEGER NOT NULL DEFAULT 0,
     class TEXT NOT NULL DEFAULT 'Guerrier',
     appearance TEXT NOT NULL DEFAULT '{}',
+
+    -- POSITION (MMO SAVE SYSTEM)
+    pos_x INTEGER NOT NULL DEFAULT 2,
+    pos_y INTEGER NOT NULL DEFAULT 2,
 
     -- STATS
     hp INTEGER NOT NULL DEFAULT 100,
@@ -38,4 +42,4 @@ CREATE TABLE IF NOT EXISTS chat_messages (
 );
 """)
 
-print("✔ Tables créées (DuckDB SAFE mode)")
+print("✔ Tables créées (DuckDB SAFE mode + POSITION SYSTEM)")

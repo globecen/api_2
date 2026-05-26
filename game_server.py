@@ -452,6 +452,31 @@ async def chat_ws(websocket: WebSocket, instance_id: int):
     finally:
         chat_connections[instance_id].remove(websocket)
 
+
+class PositionUpdate(BaseModel):
+    char_id: int
+    x: int
+    y: int
+
+
+@app.post("/character/update_position")
+def update_position(
+    payload: PositionUpdate,
+    account_id: int = Depends(get_current_account)
+):
+    # sécurité : vérifier que le perso appartient au joueur
+    char = db.db.execute("""
+        SELECT id
+        FROM characters
+        WHERE id = ? AND account_id = ?
+    """, [payload.char_id, account_id]).fetchone()
+
+    if not char:
+        raise HTTPException(403, "Unauthorized character")
+
+    db.update_position(payload.char_id, payload.x, payload.y)
+
+    return {"success": True}
 @app.post("/admin/chat/{instance_id}")
 async def admin_send_chat(instance_id: int, payload: dict = Body(...)):
     message = payload.get("message", "").strip()
@@ -485,7 +510,7 @@ async def admin_send_chat(instance_id: int, payload: dict = Body(...)):
 @app.get("/character/{id}")
 def get_character(id: int, account_id: int = Depends(get_current_account)):
     char = db.db.execute("""
-        SELECT name, class, level, xp, hp, mana, force, agilite, intelligence
+        SELECT name, class, level, xp, hp, mana, force, agilite, intelligence, pos_x, pos_y
         FROM characters
         WHERE id = ? AND account_id = ?
     """, [id, account_id]).fetchone()
@@ -502,5 +527,8 @@ def get_character(id: int, account_id: int = Depends(get_current_account)):
         "mana": char[5],
         "force": char[6],
         "agilite": char[7],
-        "intelligence": char[8]
+        "intelligence": char[8],
+
+        "pos_x": char[9],
+        "pos_y": char[10]
     }

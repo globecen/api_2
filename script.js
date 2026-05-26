@@ -12,6 +12,8 @@ let ws = null;
 /* =========================
    MAP
 ========================= */
+let saveTimeout = null;
+
 
 const TILE_SIZE = 32;
 
@@ -24,8 +26,8 @@ const MAP_HEIGHT = 18;
 const MAPS = {};
 
 const player = {
-    x: 5,
-    y: 5
+    x: null,
+    y: null
 };
 
 function getNodeKey(x, y) {
@@ -57,7 +59,13 @@ function getNeighbors(x, y, map) {
 
     return res;
 }
+function scheduleSavePosition() {
+    clearTimeout(saveTimeout);
 
+    saveTimeout = setTimeout(() => {
+        savePosition();
+    }, 200);
+}
 function findPath(start, end, map) {
     const open = [];
     const closed = new Set();
@@ -121,6 +129,7 @@ function findPath(start, end, map) {
 let path = [];
 let moving = false;
 
+
 function moveStep() {
     if (!path.length) {
         moving = false;
@@ -131,10 +140,7 @@ function moveStep() {
 
     player.x = next.x;
     player.y = next.y;
-    localStorage.setItem("playerX", player.x);
-    localStorage.setItem("playerY", player.y);
     updatePlayer();
-
     const sprite = document.getElementById("playerSprite");
     if (sprite) {
         sprite.classList.add("walking");
@@ -143,14 +149,9 @@ function moveStep() {
             sprite.classList.remove("walking");
         }, 150);
     }
-
+    scheduleSavePosition();
     setTimeout(moveStep, 120); // vitesse déplacement
-    const charId = selectedCharacter?.id;
-
-    if (charId) {
-        localStorage.setItem(`playerX_${charId}`, player.x);
-        localStorage.setItem(`playerY_${charId}`, player.y);
-    }
+    
 }
 /* ------------------------------
    DOM
@@ -230,19 +231,35 @@ async function logout() {
     selectedCharacter = null;
     currentInstanceId = null;
 
-    // 🔥 RESET POSITION
-    Object.keys(localStorage).forEach(key => {
-        if (key.startsWith("playerX_") || key.startsWith("playerY_")) {
-            localStorage.removeItem(key);
-        }
-    });
+    player.x = 5;
+    player.y = 5;
 
     localStorage.clear();
 
     cleanupGameUI();
     showLogin();
 }
+async function loadCharacterPosition(characterId) {
+    const res = await fetch(`${GAME}/character/${characterId}`, {
+        headers: {
+            Authorization: "Session " + sessionId
+        }
+    });
 
+    if (!res.ok) {
+        console.warn("Position BDD introuvable → fallback");
+        return { x: 2, y: 2 };
+    }
+
+    const c = await res.json();
+
+    console.log("Position BDD:", c.pos_x, c.pos_y);
+
+    return {
+        x: c.pos_x ?? 2,
+        y: c.pos_y ?? 2
+    };
+}
 function getPlayerStorageKey() {
     if (!selectedCharacter?.id) return null;
     return selectedCharacter.id;
@@ -256,9 +273,6 @@ function saveSessionState() {
 
     if (currentInstanceId)
         localStorage.setItem("currentInstanceId", currentInstanceId);
-
-    localStorage.setItem("playerX", player.x);
-    localStorage.setItem("playerY", player.y);
 }
 
 /* ------------------------------
@@ -575,20 +589,8 @@ document.addEventListener("click", e => {
 /* ------------------------------
    PREVIEW
 ------------------------------ */
-function initGame() {
-    const charId = selectedCharacter?.id;
-
-    if (charId) {
-        const savedX = localStorage.getItem(`playerX_${charId}`);
-        const savedY = localStorage.getItem(`playerY_${charId}`);
-
-        if (savedX !== null && savedY !== null) {
-            player.x = parseInt(savedX);
-            player.y = parseInt(savedY);
-        }
-    }
-    if (!currentInstanceId) return;
-    if (!selectedCharacter) return;
+async function initGame() {
+    if (!selectedCharacter || !currentInstanceId) return;
 
     showGame();
 
@@ -598,52 +600,80 @@ function initGame() {
         MAPS[key] = generateMap(MAP_WIDTH, MAP_HEIGHT);
     }
 
-    // 🔥 NE PAS écraser si déjà existant
-    if (player.x == null || player.y == null) {
-        player.x = 2;
-        player.y = 2;
-    }
+    // 🔥 ATTEND LA POSITION BDD
+    const pos = await loadCharacterPosition(selectedCharacter.id);
+
+    console.log("Loaded position:", pos);
+
+    player.x = pos.x;
+    player.y = pos.y;
 
     renderMap();
     createPlayer();
     updatePlayer();
 
-    if (currentInstanceId) {
-        openChatWebSocket(currentInstanceId);
-        loadCharacterStats(selectedCharacter.id);
-    }
+    openChatWebSocket(currentInstanceId);
+    loadCharacterStats(selectedCharacter.id);
 }
 window.addEventListener("load", async () => {
-    const savedX = localStorage.getItem("playerX");
-    const savedY = localStorage.getItem("playerY");
-
-    if (savedX !== null && savedY !== null) {
-        player.x = parseInt(savedX);
-        player.y = parseInt(savedY);
-    }
     sessionId = localStorage.getItem("sessionId");
-    accountId = localStorage.getItem("accountId");
-
-    const savedChar = localStorage.getItem("selectedCharacter");
-    if (savedChar) selectedCharacter = JSON.parse(savedChar);
-
-    const savedInstance = localStorage.getItem("currentInstanceId");
-    if (savedInstance) currentInstanceId = parseInt(savedInstance);
 
     if (!sessionId) {
         showLogin();
         return;
     }
 
+    const check = await fetch(`${AUTH}/validate_session`, {
+        headers: { Authorization: "Session " + sessionId }
+    });
+
+    if (!check.ok) {
+        logout();
+        return;
+    }
+
+    const info = await check.json();
+    accountId = info.account_id;
+
     connectWebSocket();
 
-    // 🔥 important : attendre que les données soient prêtes
-    if (currentInstanceId && selectedCharacter) {
-        initGame();
+    const res = await fetch(`${GAME}/me/state`, {
+        headers: { Authorization: "Session " + sessionId }
+    });
+
+    let state = null;
+    if (res.ok) state = await res.json();
+
+    if (state?.in_instance && state.character) {
+
+        selectedCharacter = state.character;
+        currentInstanceId = state.instance_id;
+
+        // ❌ NE PLUS TOUCHER player ici
+        showGame();
+        await initGame(); // 🔥 IMPORTANT: await
+
     } else {
         loadCharacters();
     }
 });
+
+async function savePosition() {
+    if (!selectedCharacter) return;
+
+    await fetch(`${GAME}/character/update_position`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: "Session " + sessionId
+        },
+        body: JSON.stringify({
+            char_id: selectedCharacter.id,
+            x: player.x,
+            y: player.y
+        })
+    });
+}
 function updatePreview() {
     const color = charColor.value;
     const name = charName.value.trim() || "(vide)";
@@ -674,18 +704,19 @@ function updatePreview() {
    SELECT CHARACTER
 ------------------------------ */
 
-function selectCharacter(character) {
-
+async function selectCharacter(character) {
     selectedCharacter = character;
 
-    // reset position ancienne
-    localStorage.removeItem(`playerX_${character.id}`);
-    localStorage.removeItem(`playerY_${character.id}`);
+    currentInstanceId = null;
 
     localStorage.setItem("selectedCharacterId", character.id);
     localStorage.setItem("selectedCharacter", JSON.stringify(character));
 
     saveSessionState();
+
+    // 🔥 IMPORTANT : reset position locale
+    player.x = null;
+    player.y = null;
 
     loadInstances();
 }
@@ -733,8 +764,12 @@ async function joinInstance(id) {
     const res = await fetch(`${GAME}/join_instance`, {
         method: "POST",
         headers: {
-            Authorization: "Session " + sessionId
-        }
+            Authorization: "Session " + sessionId,
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+            instance_id: id
+        })
     });
 
     if (!res.ok) {
@@ -743,20 +778,13 @@ async function joinInstance(id) {
     }
 
     currentInstanceId = id;
+
     localStorage.setItem("currentInstanceId", id);
     saveSessionState();
+
     showGame();
-    renderMap();
-    createPlayer();
-    updatePlayer();
-    openChatWebSocket(id);
 
-    // 👇 AJOUT ICI
-    const charId = localStorage.getItem("selectedCharacterId");
-    if (charId) {
-        loadCharacterStats(charId);
-    }
-
+    initGame();
 }
 function cleanupGameUI() {
 
@@ -939,30 +967,3 @@ function connectWebSocket() {
 }
 
 showLogin();
-window.addEventListener("load", async () => {
-
-    sessionId = localStorage.getItem("sessionId");
-    accountId = localStorage.getItem("accountId");
-
-    const savedChar = localStorage.getItem("selectedCharacter");
-    if (savedChar) selectedCharacter = JSON.parse(savedChar);
-
-    const savedInstance = localStorage.getItem("currentInstanceId");
-    if (savedInstance) currentInstanceId = parseInt(savedInstance);
-
-    if (sessionId) {
-
-        connectWebSocket();
-
-        if (currentInstanceId && selectedCharacter) {
-            showGame();
-            openChatWebSocket(currentInstanceId);
-            loadCharacterStats(selectedCharacter.id);
-        } else {
-            loadCharacters();
-        }
-
-    } else {
-        showLogin();
-    }
-});

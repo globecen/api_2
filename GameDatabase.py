@@ -55,3 +55,23 @@ class GameDatabase:
             [level, xp, char_id]
         )
         return self.get_character(char_id)
+    
+    def update_position(self, char_id: int, x: int, y: int):
+        self.db.execute("""
+            UPDATE characters
+            SET pos_x = ?, pos_y = ?
+            WHERE id = ?
+        """, [x, y, char_id])
+
+    def get_position(self, char_id: int):
+        row = self.db.execute("""
+            SELECT pos_x, pos_y
+            FROM characters
+            WHERE id = ?
+        """, [char_id]).fetchone()
+
+        if not row:
+            return (2, 2)
+
+        return row
+    
