@@ -3,8 +3,8 @@ from pydantic import BaseModel
 from passlib.hash import argon2
 import time, secrets
 from fastapi.middleware.cors import CORSMiddleware
-from .AuthDatabase import AuthDatabase
-from .init_auth_db import init_auth_db
+from AuthDatabase import AuthDatabase
+from init_auth_db import init_auth_db
 import redis
 from config.settings import AUTH_URL, URL_REDIS
 # -----------------------------
