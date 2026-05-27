@@ -4,7 +4,7 @@ WORKDIR /app
 
 # éviter les soucis de logs bufferisés
 ENV PYTHONUNBUFFERED=1
-
+ENV ENV=prod
 # dépendances système (argon2 parfois utile)
 RUN apt-get update && apt-get install -y \
     build-essential \
