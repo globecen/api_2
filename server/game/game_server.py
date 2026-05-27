@@ -7,7 +7,7 @@ import os
 from init_game_db import init_game_db
 from GameDatabase import GameDatabase
 from anti_cheat import AntiCheat
-from config.settings import AUTH_URL, URL_REDIS
+from settings import AUTH_URL, URL_REDIS
 import asyncio
 
 print("ENV =", os.getenv("ENV"))
