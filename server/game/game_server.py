@@ -1,14 +1,18 @@
 from fastapi import Body, FastAPI, HTTPException, Header, WebSocket, WebSocketDisconnect, Depends
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
-from init_game_db import init_game_db
 import requests, json
 import redis
+import os
+from .init_game_db import init_game_db
+from .GameDatabase import GameDatabase
+from .anti_cheat import AntiCheat
+from config.settings import AUTH_URL, URL_REDIS
+import asyncio
 
-from GameDatabase import GameDatabase
-from anti_cheat import AntiCheat
-
-AUTH_SERVER = "http://auth:3001"
+print("ENV =", os.getenv("ENV"))
+print("AUTH_URL =", AUTH_URL)
+print("URL_REDIS =", URL_REDIS)
 
 remote_players_connections: dict[int, list[WebSocket]] = {}
 
@@ -16,7 +20,7 @@ remote_players_connections: dict[int, list[WebSocket]] = {}
 instance_players_state = {}
 app = FastAPI()
 init_game_db()
-r = redis.Redis(host="redis", port=6379, decode_responses=True)
+r = redis.Redis(host=URL_REDIS, port=6379, decode_responses=True)
 @app.on_event("startup")
 def startup_event():
     print("🧹 Reset des instances...")
@@ -108,7 +112,7 @@ def get_current_account(authorization: str = Header(None)):
         raise HTTPException(401, "Session manquante.")
 
     r2 = requests.get(
-        f"{AUTH_SERVER}/validate_session",
+        f"{AUTH_URL}/validate_session",
         headers={"Authorization": authorization}
     )
 
@@ -267,14 +271,25 @@ async def game_ws(
 ):
     await websocket.accept()
 
+    # Récupération du session_id envoyé par le client
+    session_id = websocket.headers.get("Authorization").split(" ")[1]
+
+    # Lancer le refresh automatique + détection session expirée
+    asyncio.create_task(session_refresher(
+        websocket,
+        session_id,
+        instance_id,
+        character_id
+    ))
+
+    # Enregistrement connexion
     if instance_id not in remote_players_connections:
         remote_players_connections[instance_id] = []
 
     remote_players_connections[instance_id].append(websocket)
 
     try:
-
-        # récup personnage
+        # Récup personnage
         char = db.db.execute("""
             SELECT
                 id,
@@ -294,7 +309,7 @@ async def game_ws(
         if instance_id not in instance_players_state:
             instance_players_state[instance_id] = {}
 
-        # ajout état joueur
+        # Ajout état joueur
         instance_players_state[instance_id][character_id] = {
             "id": char[0],
             "name": char[1],
@@ -304,7 +319,7 @@ async def game_ws(
             "y": char[5]
         }
 
-        # broadcast spawn
+        # Broadcast spawn
         payload = {
             "type": "players",
             "players": list(instance_players_state[instance_id].values())
@@ -316,22 +331,20 @@ async def game_ws(
             except:
                 pass
 
-        # écoute mouvements
+        # Boucle principale
         while True:
-
             data = await websocket.receive_text()
             data = json.loads(data)
 
             if data["type"] == "move":
-
                 x = data["x"]
                 y = data["y"]
 
-                # update mémoire
+                # Update mémoire
                 instance_players_state[instance_id][character_id]["x"] = x
                 instance_players_state[instance_id][character_id]["y"] = y
 
-                # broadcast
+                # Broadcast move
                 payload = {
                     "type": "move",
                     "character_id": character_id,
@@ -349,15 +362,16 @@ async def game_ws(
         pass
 
     finally:
-
+        # Nettoyage connexion
         if websocket in remote_players_connections.get(instance_id, []):
             remote_players_connections[instance_id].remove(websocket)
 
-        # suppression joueur
+        # Suppression joueur
         if instance_id in instance_players_state:
             if character_id in instance_players_state[instance_id]:
                 del instance_players_state[instance_id][character_id]
 
+        # Broadcast déconnexion
         payload = {
             "type": "disconnect",
             "character_id": character_id
@@ -515,6 +529,35 @@ async def admin_kick_player(instance_id: int, account_id: int):
     await broadcast_instances()
     return {"success": True}
 
+async def session_refresher(websocket, session_id, instance_id, character_id):
+    while True:
+        await asyncio.sleep(60)
+
+        try:
+            res = requests.get(
+                f"{AUTH_URL}/validate_session",
+                headers={"Authorization": f"Session {session_id}"}
+            )
+
+            # Session expirée → on ferme le WS
+            if res.status_code == 401:
+                await websocket.send_text(json.dumps({
+                    "type": "session_expired"
+                }))
+                await websocket.close()
+                return
+
+            data = res.json()
+
+            # Session rafraîchie
+            if data.get("refreshed"):
+                await websocket.send_text(json.dumps({
+                    "type": "session_refreshed",
+                    "expires_at": data["expires_at"]
+                }))
+
+        except:
+            continue
 
 # ============================
 # ADMIN : Téléporter joueur
@@ -594,6 +637,7 @@ async def chat_ws(websocket: WebSocket, instance_id: int):
 
     finally:
         chat_connections[instance_id].remove(websocket)
+
 
 
 class PositionUpdate(BaseModel):

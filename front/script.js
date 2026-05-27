@@ -1,7 +1,7 @@
 let chatWS = null;
-
-const AUTH = "http://85.69.92.4:3001";
-const GAME = "http://85.69.92.4:3000";
+const URL_BASE = "127.0.0.1";
+const AUTH = "http://"+URL_BASE+":3001";
+const GAME = "http://"+URL_BASE+":3000";
 
 let sessionId = null;
 let accountId = null;
@@ -159,7 +159,7 @@ function moveStep() {
         }, 150);
     }
     scheduleSavePosition();
-    setTimeout(moveStep, 120); // vitesse déplacement
+    setTimeout(moveStep, 60); // vitesse déplacement
 
 }
 /* ------------------------------
@@ -741,7 +741,7 @@ window.addEventListener("load", async () => {
 async function savePosition() {
     if (!selectedCharacter) return;
 
-    await fetch(`${GAME}/character/update_position`, {
+    const res = await fetch(`${GAME}/character/update_position`, {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
@@ -753,7 +753,55 @@ async function savePosition() {
             y: player.y
         })
     });
+
+    // Si la session est expirée → popup + reload
+    if (res.status === 401) {
+        showLogoutPopup();
+        return;
+    }
 }
+
+function showLogoutPopup() {
+    const div = document.createElement("div");
+    div.style.position = "fixed";
+    div.style.top = "0";
+    div.style.left = "0";
+    div.style.width = "100%";
+    div.style.height = "100%";
+    div.style.background = "rgba(0,0,0,0.7)";
+    div.style.display = "flex";
+    div.style.alignItems = "center";
+    div.style.justifyContent = "center";
+    div.style.zIndex = "9999";
+
+    div.innerHTML = `
+        <div style="
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            width: 300px;
+            font-family: sans-serif;
+        ">
+            <h3>Session expirée</h3>
+            <p>Vous avez été déconnecté.</p>
+            <button id="logout-ok" style="
+                padding: 10px 20px;
+                margin-top: 10px;
+                cursor: pointer;
+            ">OK</button>
+        </div>
+    `;
+
+    document.body.appendChild(div);
+
+    document.getElementById("logout-ok").onclick = () => {
+        location.reload(); // F5
+    };
+}
+
+
+        
 function updatePreview() {
     const color = charColor.value;
     const name = charName.value.trim() || "(vide)";
@@ -774,10 +822,6 @@ function updatePreview() {
     else if (charClass === "Mage") sprite.classList.add("class-mage");
     else if (charClass === "Archer") sprite.classList.add("class-archer");
     else if (charClass === "Nécromancien") sprite.classList.add("class-necromancien");
-
-    document.getElementById("previewName").textContent = "Nom : " + name;
-    document.getElementById("previewClass").textContent = "Classe : " + charClass;
-    document.getElementById("previewColor").textContent = "Couleur : " + color;
 }
 
 /* ------------------------------
@@ -877,7 +921,7 @@ function connectGameWS() {
     if (!currentInstanceId || !selectedCharacter) return;
 
     gameWS = new WebSocket(
-        `ws://85.69.92.4:3000/ws/game/${currentInstanceId}/${selectedCharacter.id}`
+        `ws://`+URL_BASE+`:3000/ws/game/${currentInstanceId}/${selectedCharacter.id}`
     );
 
     gameWS.onopen = () => {
@@ -1081,7 +1125,7 @@ function cleanupGameUI() {
 function openChatWebSocket(instanceId) {
     if (chatWS) chatWS.close();
 
-    chatWS = new WebSocket(`ws://85.69.92.4:3000/ws/chat/${instanceId}`);
+    chatWS = new WebSocket(`ws://`+URL_BASE+`:3000/ws/chat/${instanceId}`);
 
     const chatBox = document.getElementById("chatBox");
     chatBox.innerHTML = "";
@@ -1170,7 +1214,7 @@ async function leaveInstance() {
 function connectWebSocket() {
     if (ws) ws.close();
 
-    ws = new WebSocket("ws://85.69.92.4:3000/ws/instances");
+    ws = new WebSocket("ws://"+URL_BASE+":3000/ws/instances");
 }
 
 showLogin();
