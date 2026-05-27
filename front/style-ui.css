@@ -21,11 +21,29 @@
         0 4px 10px rgba(0,0,0,0.45);
 
     --panel-gradient:
-        linear-gradient(
-            180deg,
-            #3a3128 0%,
-            #241d17 100%
-        );
+        linear-gradient(180deg,#3a3128 0%,#241d17 100%);
+}
+/* =========================
+   GLOBAL FIX MOBILE
+========================= */
+
+*{
+    box-sizing:border-box;
+}
+
+html,body{
+    margin:0;
+    padding:0;
+    height:100%;
+    overflow:hidden;
+    font-family:"Trebuchet MS", Verdana, sans-serif;
+    background:#17120d;
+    color:var(--ui-text);
+}
+
+h1,h2,h3{
+    margin-top:0;
+    color:var(--ui-gold);
 }
 
 /* =========================
@@ -674,42 +692,320 @@ button:active{
    GAME PANEL
 ========================= */
 
-#gamePanel{
-    width:100%;
-    height:100vh;
+:root{
+    --char-color:#c94f4f;
 
-    display:flex;
-    flex-direction:column;
+    --ui-bg:#15120f;
+    --ui-panel:#2b241d;
+    --ui-panel-2:#3a3128;
 
-    background:
-        radial-gradient(circle at top,#2a241d,#14110d 80%);
+    --ui-border:#8b6b3f;
+    --ui-border-dark:#4d3920;
+
+    --ui-gold:#d8b46a;
+    --ui-text:#efe6d2;
+
+    --ui-green:#61784c;
+    --ui-red:#9b4c3f;
+    --ui-blue:#59708d;
+
+    --shadow:
+        inset 0 1px 0 rgba(255,255,255,0.08),
+        inset 0 -2px 4px rgba(0,0,0,0.5),
+        0 4px 10px rgba(0,0,0,0.45);
+
+    --panel-gradient:
+        linear-gradient(180deg,#3a3128 0%,#241d17 100%);
 }
 
 /* =========================
-   MAP
+   GLOBAL FIX MOBILE
 ========================= */
 
+*{
+    box-sizing:border-box;
+}
+
+html,body{
+    margin:0;
+    padding:0;
+    height:100%;
+    overflow:hidden;
+    font-family:"Trebuchet MS", Verdana, sans-serif;
+    background:#17120d;
+    color:var(--ui-text);
+}
+
+h1,h2,h3{
+    margin-top:0;
+    color:var(--ui-gold);
+}
+
+/* =========================
+   GAME LAYOUT
+========================= */
+
+#gamePanel{
+    width:100%;
+    height:100vh;
+    display:flex;
+    flex-direction:column;
+}
+
+/* MAP */
 #mapContainer{
     width:100%;
     height:70vh;
-
     position:relative;
-
     overflow:hidden;
-
-    border-bottom:
-        3px solid #5f4827;
-
-    background:
-        radial-gradient(circle,#49583b,#232d1f 70%);
+    border-bottom:3px solid #5f4827;
 }
 
+/* WORLD */
 #gameWorld{
     position:relative;
-
     width:2000px;
     height:2000px;
+    transform-origin:top left;
+}
 
+/* =========================
+   BOTTOM UI
+========================= */
+
+#bottomUI{
+    width:100%;
+    height:30vh;
+    display:flex;
+    gap:12px;
+    padding:12px;
+    background:#1a1410;
+    z-index:10;
+}
+
+/* BLOQUER LES PERSOS SOUS UI */
+#bottomUI,
+#chatSection,
+#hudSection,
+#optionsSection{
+    position:relative;
+    z-index:1000;
+}
+
+/* =========================
+   PANELS UI
+========================= */
+
+#chatSection,
+#hudSection,
+#optionsSection{
+    background:var(--panel-gradient);
+    border:2px solid var(--ui-border);
+    border-radius:14px;
+    overflow:hidden;
+}
+
+/* CHAT */
+#chatSection{
+    flex:2;
+    display:flex;
+    flex-direction:column;
+    padding:10px;
+}
+
+#chatBox{
+    flex:1;
+    overflow-y:auto;
+    background:#0f0c09;
+    padding:10px;
+    border-radius:8px;
+}
+
+/* HUD */
+#hudSection{
+    flex:1;
+    padding:10px;
+}
+
+#hud{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+}
+
+#hud div{
+    background:#15110d;
+    padding:8px;
+    border-radius:8px;
+    display:flex;
+    justify-content:space-between;
+}
+
+/* OPTIONS */
+#optionsSection{
+    flex:0.8;
+    padding:10px;
+    display:flex;
+    flex-direction:column;
+    justify-content:space-between;
+}
+
+/* =========================
+   BUTTONS MOBILE FIX
+========================= */
+
+button{
+    padding:10px;
+    border:none;
+    border-radius:8px;
+    background:#7b5a2d;
+    color:white;
+    cursor:pointer;
+    min-height:42px;
+}
+
+
+/* =========================
+   MINI MAP
+========================= */
+
+#miniMap{
+    position:absolute;
+    top:15px;
+    right:15px;
+    width:220px;
+    height:140px;
+    background:#00000088;
+    border-radius:10px;
+    z-index:5;
+}
+
+/* =========================
+   PLAYERS FIX (IMPORTANT)
+========================= */
+
+#player,
+.remotePlayer{
+    position:absolute;
+    width:64px;
+    height:96px;
+    z-index:5;
+    pointer-events:none;
+}
+
+/* HEAD */
+.charHead,
+.playerHead{
+    position:absolute;
+    width:24px;
+    height:24px;
+    left:50%;
+    top:18px;
+    transform:translateX(-50%);
+    border-radius:50%;
+    z-index:3;
+}
+
+/* BODY */
+.charBody,
+.playerBody{
+    position:absolute;
+    width:28px;
+    height:34px;
+    left:50%;
+    top:38px;
+    transform:translateX(-50%);
+    border-radius:10px;
+    z-index:2;
+}
+
+/* NAME */
+.playerName{
+    position:absolute;
+    top:-18px;
+    left:50%;
+    transform:translateX(-50%);
+    font-size:11px;
+    color:white;
+    z-index:10;
+}
+
+/* =========================
+   ARMES FIX (DÉCALAGE PROPRE)
+========================= */
+
+.class-guerrier .charWeapon{
+    position:absolute;
+    width:6px;
+    height:32px;
+    right:-20px;   /* IMPORTANT */
+    top:42px;
+    transform:rotate(18deg);
+}
+
+.class-mage .charStaff{
+    position:absolute;
+    width:5px;
+    height:36px;
+    right:-18px;
+    top:38px;
+}
+
+.class-archer .charBow{
+    position:absolute;
+    width:14px;
+    height:30px;
+    right:-22px;
+    top:42px;
+}
+
+/* =========================
+   RESPONSIVE MOBILE
+========================= */
+
+@media (max-width:768px){
+
+    body{
+        overflow:auto;
+    }
+
+    #gamePanel{
+        height:auto;
+        min-height:100vh;
+    }
+
+    #mapContainer{
+        height:55vh;
+    }
+
+    #bottomUI{
+        flex-direction:column;
+        height:auto;
+    }
+
+    #hud{
+        grid-template-columns:1fr;
+    }
+
+    #miniMap{
+        width:120px;
+        height:80px;
+    }
+
+    #chatBox{
+        max-height:25vh;
+    }
+
+    button{
+        font-size:14px;
+    }
+}
+
+/* WORLD */
+#gameWorld{
+    position:relative;
+    width:2000px;
+    height:2000px;
     transform-origin:top left;
 }
 
@@ -834,37 +1130,23 @@ button:active{
 #bottomUI{
     width:100%;
     height:30vh;
-
     display:flex;
     gap:12px;
-
     padding:12px;
-
-    background:
-        linear-gradient(
-            180deg,
-            #241d17,
-            #17120e
-        );
+    background:#1a1410;
+    z-index:10;
 }
 
 /* =========================
    CHAT / HUD / OPTIONS
 ========================= */
-
+/* BLOQUER LES PERSOS SOUS UI */
+#bottomUI,
 #chatSection,
 #hudSection,
 #optionsSection{
-    background:var(--panel-gradient);
-
-    border:
-        2px solid var(--ui-border);
-
-    border-radius:14px;
-
-    box-shadow:var(--shadow);
-
-    overflow:hidden;
+    position:relative;
+    z-index:1000;
 }
 
 #chatSection{
