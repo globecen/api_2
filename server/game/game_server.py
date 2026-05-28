@@ -1,13 +1,14 @@
 from fastapi import Body, FastAPI, HTTPException, Header, WebSocket, WebSocketDisconnect, Depends
 from pydantic import BaseModel
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 import requests, json
 import redis
 import os
-from init_game_db import init_game_db
-from GameDatabase import GameDatabase
-from anti_cheat import AntiCheat
-from settings import AUTH_URL, URL_REDIS
+from .init_game_db import init_game_db
+from .GameDatabase import GameDatabase
+from .anti_cheat import AntiCheat
+from .settings import AUTH_URL, URL_REDIS
 import asyncio
 
 print("ENV =", os.getenv("ENV"))
@@ -19,6 +20,13 @@ remote_players_connections: dict[int, list[WebSocket]] = {}
 # instance_id -> { account_id -> player_data }
 instance_players_state = {}
 app = FastAPI()
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # ou ["http://127.0.0.1:8080"]
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 init_game_db()
 r = redis.Redis(host=URL_REDIS, port=6379, decode_responses=True)
 @app.on_event("startup")
@@ -271,10 +279,13 @@ async def game_ws(
 ):
     await websocket.accept()
 
-    # Récupération du session_id envoyé par le client
-    session_id = websocket.headers.get("Authorization").split(" ")[1]
+    auth = websocket.headers.get("Authorization")
+    if not auth:
+        await websocket.close()
+        return
 
-    # Lancer le refresh automatique + détection session expirée
+    session_id = auth.split(" ")[1]
+
     asyncio.create_task(session_refresher(
         websocket,
         session_id,
@@ -282,7 +293,6 @@ async def game_ws(
         character_id
     ))
 
-    # Enregistrement connexion
     if instance_id not in remote_players_connections:
         remote_players_connections[instance_id] = []
 
@@ -297,7 +307,9 @@ async def game_ws(
                 class,
                 appearance,
                 pos_x,
-                pos_y
+                pos_y,
+                map_x,
+                map_y
             FROM characters
             WHERE id = ?
         """, [character_id]).fetchone()
@@ -309,17 +321,18 @@ async def game_ws(
         if instance_id not in instance_players_state:
             instance_players_state[instance_id] = {}
 
-        # Ajout état joueur
         instance_players_state[instance_id][character_id] = {
             "id": char[0],
             "name": char[1],
             "class": char[2],
             "appearance": json.loads(char[3]),
             "x": char[4],
-            "y": char[5]
+            "y": char[5],
+            "map_x": char[6],
+            "map_y": char[7]
         }
 
-        # Broadcast spawn
+        # Broadcast snapshot
         payload = {
             "type": "players",
             "players": list(instance_players_state[instance_id].values())
@@ -333,23 +346,29 @@ async def game_ws(
 
         # Boucle principale
         while True:
-            data = await websocket.receive_text()
-            data = json.loads(data)
+            data = json.loads(await websocket.receive_text())
 
             if data["type"] == "move":
                 x = data["x"]
                 y = data["y"]
+                map_x = data["map_x"]
+                map_y = data["map_y"]
 
                 # Update mémoire
-                instance_players_state[instance_id][character_id]["x"] = x
-                instance_players_state[instance_id][character_id]["y"] = y
+                p = instance_players_state[instance_id][character_id]
+                p["x"] = x
+                p["y"] = y
+                p["map_x"] = map_x
+                p["map_y"] = map_y
 
                 # Broadcast move
                 payload = {
                     "type": "move",
                     "character_id": character_id,
                     "x": x,
-                    "y": y
+                    "y": y,
+                    "map_x": map_x,
+                    "map_y": map_y
                 }
 
                 for ws in remote_players_connections[instance_id]:
@@ -362,16 +381,13 @@ async def game_ws(
         pass
 
     finally:
-        # Nettoyage connexion
+        # Nettoyage
         if websocket in remote_players_connections.get(instance_id, []):
             remote_players_connections[instance_id].remove(websocket)
 
-        # Suppression joueur
-        if instance_id in instance_players_state:
-            if character_id in instance_players_state[instance_id]:
-                del instance_players_state[instance_id][character_id]
+        if character_id in instance_players_state.get(instance_id, {}):
+            del instance_players_state[instance_id][character_id]
 
-        # Broadcast déconnexion
         payload = {
             "type": "disconnect",
             "character_id": character_id
@@ -382,6 +398,7 @@ async def game_ws(
                 await ws.send_text(json.dumps(payload))
             except:
                 pass
+
             
 @app.post("/characters")
 def create_character(payload: CharacterCreate, account_id: int = Depends(get_current_account)):
@@ -644,6 +661,8 @@ class PositionUpdate(BaseModel):
     char_id: int
     x: int
     y: int
+    map_x: int
+    map_y: int
 
 
 @app.post("/character/update_position")
@@ -661,9 +680,22 @@ def update_position(
     if not char:
         raise HTTPException(403, "Unauthorized character")
 
-    db.update_position(payload.char_id, payload.x, payload.y)
+    db.db.execute("""
+        UPDATE characters
+        SET pos_x = ?, pos_y = ?, map_x = ?, map_y = ?
+        WHERE id = ?
+    """, [
+        payload.x,
+        payload.y,
+        payload.map_x,
+        payload.map_y,
+        payload.char_id
+    ])
+
+    db.db.commit()
 
     return {"success": True}
+
 @app.post("/admin/chat/{instance_id}")
 async def admin_send_chat(instance_id: int, payload: dict = Body(...)):
     message = payload.get("message", "").strip()
@@ -694,6 +726,7 @@ async def admin_send_chat(instance_id: int, payload: dict = Body(...)):
             chat_connections[instance_id].remove(ws)
 
     return {"success": True}
+
 @app.get("/me/state")
 def get_my_state(account_id: int = Depends(get_current_account)):
 
@@ -714,7 +747,9 @@ def get_my_state(account_id: int = Depends(get_current_account)):
             appearance,
             level,
             pos_x,
-            pos_y
+            pos_y,
+            map_x,
+            map_y
         FROM characters
         WHERE account_id = ?
         LIMIT 1
@@ -737,9 +772,12 @@ def get_my_state(account_id: int = Depends(get_current_account)):
             "appearance": json.loads(char[3]),
             "level": char[4],
             "pos_x": char[5],
-            "pos_y": char[6]
+            "pos_y": char[6],
+            "map_x": char[7],
+            "map_y": char[8]
         }
     }
+
 @app.get("/character/{id}")
 def get_character(id: int, account_id: int = Depends(get_current_account)):
     char = db.db.execute("""
@@ -773,8 +811,17 @@ def get_instance_players(instance_id: int):
     result = []
 
     for p in players:
+        p = int(p)
+
+        # 🔥 Récupération position en temps réel dans Redis
+        pos_x = r.get(f"player:{p}:pos_x")
+        pos_y = r.get(f"player:{p}:pos_y")
+        map_x = r.get(f"player:{p}:map_x")
+        map_y = r.get(f"player:{p}:map_y")
+
+        # 🔥 Si pas en Redis → fallback SQL
         char = db.db.execute("""
-            SELECT id, name, class, appearance, pos_x, pos_y
+            SELECT id, name, class, appearance
             FROM characters
             WHERE account_id = ?
             LIMIT 1
@@ -782,13 +829,15 @@ def get_instance_players(instance_id: int):
 
         if char:
             result.append({
-                "account_id": int(p),
+                "account_id": p,
                 "id": char[0],
                 "name": char[1],
                 "class": char[2],
                 "appearance": json.loads(char[3]),
-                "x": char[4] or 2,
-                "y": char[5] or 2
+                "x": int(pos_x) if pos_x else 2,
+                "y": int(pos_y) if pos_y else 2,
+                "map_x": int(map_x) if map_x else 1,
+                "map_y": int(map_y) if map_y else 1
             })
 
     return {"players": result}

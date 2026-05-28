@@ -1,3 +1,7 @@
+/* =========================
+   THEME & VARIABLES
+========================= */
+
 :root{
     --char-color:#c94f4f;
 
@@ -22,28 +26,6 @@
 
     --panel-gradient:
         linear-gradient(180deg,#3a3128 0%,#241d17 100%);
-}
-/* =========================
-   GLOBAL FIX MOBILE
-========================= */
-
-*{
-    box-sizing:border-box;
-}
-
-html,body{
-    margin:0;
-    padding:0;
-    height:100%;
-    overflow:hidden;
-    font-family:"Trebuchet MS", Verdana, sans-serif;
-    background:#17120d;
-    color:var(--ui-text);
-}
-
-h1,h2,h3{
-    margin-top:0;
-    color:var(--ui-gold);
 }
 
 /* =========================
@@ -54,142 +36,106 @@ h1,h2,h3{
     box-sizing:border-box;
 }
 
-body{
+html,body{
     margin:0;
-    padding:20px;
-
-    font-family:
-        "Trebuchet MS",
-        Verdana,
-        sans-serif;
-
+    padding:0;
+    height:100%;
+    font-family:"Trebuchet MS", Verdana, sans-serif;
     background:
         radial-gradient(circle at top,#3d3123,#17120d 70%);
-
     color:var(--ui-text);
-
-    overflow:hidden;
 }
 
-h1,h2,h3{
-    margin-top:0;
+/* MODE HORS JEU (login / création / choix) */
+body:not(.in-game){
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:flex-start;
+    overflow:hidden;          /* pas de scroll si ça tient dans l'écran */
+}
 
+/* MODE JEU */
+body.in-game{
+    overflow:hidden;          /* le jeu occupe tout l'écran, pas de scroll */
+}
+
+/* TITRE GLOBAL */
+
+h1{
+    margin:16px 0 8px;
     color:var(--ui-gold);
-
     text-shadow:
         0 1px 0 #000,
         0 0 8px rgba(216,180,106,0.25);
 }
 
 /* =========================
-   PANELS
+   PANELS GENERIQUES
 ========================= */
 
 .panel{
     background:var(--panel-gradient);
-
-    border:
-        2px solid var(--ui-border);
-
+    border:2px solid var(--ui-border);
     box-shadow:var(--shadow);
-
     border-radius:14px;
-
     padding:20px;
-
+    width:90%;
     max-width:450px;
-
-    margin-bottom:20px;
-
+    margin:16px auto;
     position:relative;
-
     overflow:hidden;
 }
 
 .panel::before{
     content:"";
-
     position:absolute;
     inset:4px;
-
     border-radius:10px;
-
-    border:
-        1px solid rgba(255,255,255,0.06);
-
+    border:1px solid rgba(255,255,255,0.06);
     pointer-events:none;
 }
 
 /* =========================
-   INPUTS
+   FORM / INPUTS / BUTTONS
 ========================= */
 
 input,
 select,
 button{
     width:100%;
-
     padding:12px;
-
     margin-top:10px;
-
     border-radius:10px;
-
     font-size:14px;
 }
 
 input,
 select{
-    background:
-        linear-gradient(
-            180deg,
-            #1d1813,
-            #2a221a
-        );
-
-    border:
-        2px solid #5b4527;
-
+    background:linear-gradient(180deg,#1d1813,#2a221a);
+    border:2px solid #5b4527;
     color:var(--ui-text);
-
-    box-shadow:
-        inset 0 2px 4px rgba(0,0,0,0.4);
+    box-shadow:inset 0 2px 4px rgba(0,0,0,0.4);
 }
 
 input:focus,
 select:focus{
     outline:none;
-
     border-color:var(--ui-gold);
 }
 
-/* =========================
-   BUTTONS
-========================= */
-
 button{
     cursor:pointer;
-
     color:#fff6e1;
-
-    border:
-        2px solid #7b5a2d;
-
-    background:
-        linear-gradient(
-            180deg,
-            #8d6a39,
-            #6b4d28
-        );
-
+    border:2px solid #7b5a2d;
+    background:linear-gradient(180deg,#8d6a39,#6b4d28);
     box-shadow:var(--shadow);
-
     transition:0.15s;
+    min-height:42px;
 }
 
 button:hover{
     transform:translateY(-1px);
-
     filter:brightness(1.08);
 }
 
@@ -198,1084 +144,476 @@ button:active{
 }
 
 .dangerBtn{
-    background:
-        linear-gradient(
-            180deg,
-            #9b4c3f,
-            #6f2f25
-        );
+    background:linear-gradient(180deg,#9b4c3f,#6f2f25);
 }
 
 /* =========================
-   PREVIEW
+   PREVIEW PERSONNAGE
 ========================= */
 
 #previewBox{
     margin-top:15px;
-
     padding:15px;
-
-    background:
-        linear-gradient(
-            180deg,
-            #1d1813,
-            #16110d
-        );
-
-    border:
-        2px solid #5a4325;
-
+    background:linear-gradient(180deg,#1d1813,#16110d);
+    border:2px solid #5a4325;
     border-radius:14px;
-
     display:flex;
     align-items:center;
     justify-content:center;
-
     gap:15px;
-
     box-shadow:var(--shadow);
-
     overflow:hidden;
-
     min-height:120px;
-
     position:relative;
 }
 
-/* =========================
-   CHARACTERS
-========================= */
-
-.charSprite,
-.remotePlayer,
-#player{
+.charSprite{
     position:relative;
-
     width:64px;
     height:96px;
-
     image-rendering:pixelated;
-
-    filter:
-        drop-shadow(0 4px 4px rgba(0,0,0,0.45));
-
+    filter:drop-shadow(0 4px 4px rgba(0,0,0,0.45));
     pointer-events:none;
-
     z-index:1;
 }
 
-/* =========================
-   CAPE
-========================= */
+/* CAPE */
 
-.charSprite::before,
-.remotePlayer::before,
-#player::before{
+.charSprite::before{
     content:"";
-
     position:absolute;
-
     width:22px;
     height:34px;
-
     left:50%;
     top:42px;
-
     transform:translateX(-50%);
-
-    background:
-        linear-gradient(
-            180deg,
-            #6d1f1f,
-            #3e0f0f
-        );
-
-    clip-path:polygon(
-        15% 0%,
-        85% 0%,
-        100% 100%,
-        0% 100%
-    );
-
+    background:linear-gradient(180deg,#6d1f1f,#3e0f0f);
+    clip-path:polygon(15% 0%,85% 0%,100% 100%,0% 100%);
     opacity:0.9;
-
     z-index:0;
 }
 
-/* =========================
-   BODY
-========================= */
+/* BODY / HEAD / ARMS identiques au joueur */
 
-.charBody,
-.playerBody{
+.charBody{
     position:absolute;
-
     width:28px;
     height:34px;
-
     left:50%;
     top:38px;
-
     transform:translateX(-50%);
-
-    border-radius:
-        12px 12px 8px 8px;
-
+    border-radius:12px 12px 8px 8px;
     background:
-        linear-gradient(
-            180deg,
-            rgba(255,255,255,0.15),
-            transparent 30%
-        ),
+        linear-gradient(180deg,rgba(255,255,255,0.15),transparent 30%),
         var(--char-color);
-
     border:2px solid rgba(0,0,0,0.35);
-
     box-shadow:
         inset 0 2px 3px rgba(255,255,255,0.18),
         inset 0 -4px 6px rgba(0,0,0,0.25);
-
     z-index:2;
 }
 
-/* =========================
-   HEAD
-========================= */
-
-.charHead,
-.playerHead{
+.charHead{
     position:absolute;
-
     width:24px;
     height:24px;
-
     left:50%;
     top:18px;
-
     transform:translateX(-50%);
-
     border-radius:50%;
-
-    background:
-        radial-gradient(
-            circle at 35% 30%,
-            #ffe2c0,
-            #d8ad7d
-        );
-
+    background:radial-gradient(circle at 35% 30%,#ffe2c0,#d8ad7d);
     border:2px solid rgba(0,0,0,0.35);
-
     z-index:3;
 }
 
-/* =========================
-   HAIR
-========================= */
-
-.charHead::before,
-.playerHead::before{
+.charHead::before{
     content:"";
-
     position:absolute;
-
     width:26px;
     height:12px;
-
     top:-2px;
     left:-3px;
-
-    border-radius:
-        14px 14px 8px 8px;
-
-    background:
-        linear-gradient(
-            180deg,
-            #5c3419,
-            #2d170b
-        );
+    border-radius:14px 14px 8px 8px;
+    background:linear-gradient(180deg,#5c3419,#2d170b);
 }
 
-/* =========================
-   EYES
-========================= */
-
-.charHead::after,
-.playerHead::after{
+.charHead::after{
     content:"";
-
     position:absolute;
-
     width:12px;
     height:4px;
-
     left:5px;
     top:10px;
-
     background:
         radial-gradient(circle,#111 35%,transparent 40%),
         radial-gradient(circle,#111 35%,transparent 40%);
-
     background-size:4px 4px;
     background-repeat:no-repeat;
     background-position:left center,right center;
 }
 
-/* =========================
-   ARMS
-========================= */
-
 .charBody::before,
-.playerBody::before,
-.charBody::after,
-.playerBody::after{
+.charBody::after{
     content:"";
-
     position:absolute;
-
     width:8px;
     height:22px;
-
     top:4px;
-
     border-radius:10px;
-
-    background:
-        linear-gradient(
-            180deg,
-            #e5c29d,
-            #b78661
-        );
-
+    background:linear-gradient(180deg,#e5c29d,#b78661);
     border:1px solid rgba(0,0,0,0.25);
 }
 
-.charBody::before,
-.playerBody::before{
+.charBody::before{
     left:-6px;
-
     transform:rotate(12deg);
 }
 
-.charBody::after,
-.playerBody::after{
+.charBody::after{
     right:-6px;
-
     transform:rotate(-12deg);
 }
 
-/* =========================
-   LEGS
-========================= */
-
-.playerLegLeft,
-.playerLegRight{
-    position:absolute;
-
-    width:8px;
-    height:20px;
-
-    top:66px;
-
-    border-radius:0 0 6px 6px;
-
-    background:
-        linear-gradient(
-            180deg,
-            #5f4630,
-            #2f2217
-        );
-
-    border:1px solid rgba(0,0,0,0.35);
-}
-
-.playerLegLeft{
-    left:22px;
-}
-
-.playerLegRight{
-    left:34px;
-}
-
-/* =========================
-   FEET
-========================= */
-
-.playerLegLeft::after,
-.playerLegRight::after{
-    content:"";
-
-    position:absolute;
-
-    width:12px;
-    height:6px;
-
-    bottom:-2px;
-    left:-2px;
-
-    border-radius:4px;
-
-    background:#2a1f16;
-}
-
-/* =========================
-   CLASS STYLES
-========================= */
+/* ARMES PREVIEW */
 
 .class-guerrier .charWeapon{
     position:absolute;
-
-    width:6px;
-    height:30px;
-
-    right:10px;
-    top:42px;
-
-    background:
-        linear-gradient(
-            180deg,
-            #7b4e26,
-            #4e2d14
-        );
-
+    width:8px;
+    height:34px;
+    right:-20px;
+    top:40px;
+    background:linear-gradient(180deg,#7b4e26,#4e2d14);
     border-radius:4px;
+    box-shadow:0 0 4px rgba(0,0,0,0.6);
 }
 
 .class-guerrier .charWeapon::before{
     content:"";
-
     position:absolute;
-
-    width:18px;
-    height:12px;
-
-    top:-4px;
+    width:20px;
+    height:14px;
+    top:-6px;
     left:4px;
-
-    background:
-        linear-gradient(
-            135deg,
-            #d7d7d7,
-            #777
-        );
-
+    background:linear-gradient(135deg,#d7d7d7,#777);
     border-radius:4px;
-
     transform:rotate(-20deg);
 }
 
 .class-mage .charStaff{
     position:absolute;
-
-    width:5px;
-    height:34px;
-
-    right:12px;
-    top:38px;
-
+    width:6px;
+    height:38px;
+    right:-18px;
+    top:36px;
     background:#5b3418;
-
     border-radius:4px;
+    box-shadow:0 0 4px rgba(0,0,0,0.6);
 }
 
 .class-mage .charStaff::before{
     content:"";
-
     position:absolute;
-
-    width:14px;
-    height:14px;
-
-    top:-8px;
-    left:-5px;
-
+    width:16px;
+    height:16px;
+    top:-10px;
+    left:-6px;
     border-radius:50%;
-
-    background:
-        radial-gradient(circle,#9ce7ff,#2f83ff);
-
-    box-shadow:
-        0 0 10px rgba(100,180,255,0.8);
+    background:radial-gradient(circle,#9ce7ff,#2f83ff);
+    box-shadow:0 0 10px rgba(100,180,255,0.9);
 }
 
 .class-archer .charBow{
     position:absolute;
-
-    width:14px;
-    height:28px;
-
-    right:8px;
-    top:42px;
-
-    border:3px solid #b98342;
+    width:18px;
+    height:34px;
+    right:-26px;
+    top:40px;
+    border:4px solid #d4a05a;
     border-left:0;
-
     border-radius:0 30px 30px 0;
+    background:linear-gradient(180deg,#8b5e2f,#5a3c1d);
+    box-shadow:0 0 6px rgba(0,0,0,0.6);
 }
 
 .class-necromancien .charAura{
     position:absolute;
-
     width:70px;
     height:70px;
-
     left:50%;
     top:20px;
-
     transform:translateX(-50%);
-
     border-radius:50%;
-
-    background:
-        radial-gradient(
-            circle,
-            rgba(170,0,255,0.35),
-            transparent 70%
-        );
+    background:radial-gradient(circle,rgba(170,0,255,0.35),transparent 70%);
 }
 
 /* =========================
-   CHARACTER LIST
+   LISTE PERSONNAGES
 ========================= */
 
 .characterItem{
     position:relative;
-
     overflow:hidden;
-
     min-height:80px;
-
     display:flex;
     align-items:center;
-
     gap:12px;
-
     padding:10px;
-
     margin-bottom:10px;
-
     border-radius:10px;
-
-    background:
-        linear-gradient(
-            180deg,
-            #2d251d,
-            #1d1813
-        );
-
-    border:
-        1px solid rgba(255,255,255,0.05);
+    background:linear-gradient(180deg,#2d251d,#1d1813);
+    border:1px solid rgba(255,255,255,0.05);
 }
 
 .characterMiniSprite{
     width:64px;
     height:64px;
-
     position:relative;
-
     overflow:hidden;
-
     flex-shrink:0;
 }
 
 .characterItem .charSprite{
     transform:scale(0.7);
-
     transform-origin:top left;
-
     position:absolute;
-
     top:-10px;
     left:-6px;
 }
 
 /* =========================
-   GAME PANEL
+   GAME LAYOUT (body.in-game)
 ========================= */
 
-:root{
-    --char-color:#c94f4f;
-
-    --ui-bg:#15120f;
-    --ui-panel:#2b241d;
-    --ui-panel-2:#3a3128;
-
-    --ui-border:#8b6b3f;
-    --ui-border-dark:#4d3920;
-
-    --ui-gold:#d8b46a;
-    --ui-text:#efe6d2;
-
-    --ui-green:#61784c;
-    --ui-red:#9b4c3f;
-    --ui-blue:#59708d;
-
-    --shadow:
-        inset 0 1px 0 rgba(255,255,255,0.08),
-        inset 0 -2px 4px rgba(0,0,0,0.5),
-        0 4px 10px rgba(0,0,0,0.45);
-
-    --panel-gradient:
-        linear-gradient(180deg,#3a3128 0%,#241d17 100%);
+body.in-game #loginPanel,
+body.in-game #registerPanel,
+body.in-game #characterPanel,
+body.in-game #createCharacterPanel,
+body.in-game #instancePanel{
+    display:none !important;
 }
 
-/* =========================
-   GLOBAL FIX MOBILE
-========================= */
-
-*{
-    box-sizing:border-box;
+body.in-game h1{
+    margin:8px 12px;
 }
 
-html,body{
-    margin:0;
-    padding:0;
-    height:100%;
-    overflow:hidden;
-    font-family:"Trebuchet MS", Verdana, sans-serif;
-    background:#17120d;
-    color:var(--ui-text);
-}
-
-h1,h2,h3{
-    margin-top:0;
-    color:var(--ui-gold);
-}
-
-/* =========================
-   GAME LAYOUT
-========================= */
-
-#gamePanel{
-    width:100%;
-    height:100vh;
-    display:flex;
+body.in-game #gamePanel{
+    display:flex !important;
     flex-direction:column;
+    width:100%;
+    height:calc(100vh - 40px); /* 40px ≈ titre + marge */
 }
 
 /* MAP */
-#mapContainer{
-    width:100%;
-    height:70vh;
+
+body.in-game #mapContainer{
+    flex:1;
     position:relative;
     overflow:hidden;
     border-bottom:3px solid #5f4827;
+    min-height:300px;
 }
 
-/* WORLD */
-#gameWorld{
+body.in-game #gameWorld{
     position:relative;
     width:2000px;
     height:2000px;
     transform-origin:top left;
+    background:#2b241d; /* optionnel, juste pour éviter le noir/marron vide */
 }
 
-/* =========================
-   BOTTOM UI
-========================= */
+/* BOTTOM UI */
 
-#bottomUI{
+body.in-game #bottomUI{
     width:100%;
-    height:30vh;
     display:flex;
     gap:12px;
     padding:12px;
     background:#1a1410;
-    z-index:10;
-}
-
-/* BLOQUER LES PERSOS SOUS UI */
-#bottomUI,
-#chatSection,
-#hudSection,
-#optionsSection{
+    flex-shrink:0;
+    flex-wrap:wrap;
     position:relative;
     z-index:1000;
 }
 
-/* =========================
-   PANELS UI
-========================= */
-
-#chatSection,
-#hudSection,
-#optionsSection{
-    background:var(--panel-gradient);
-    border:2px solid var(--ui-border);
-    border-radius:14px;
-    overflow:hidden;
-}
-
 /* CHAT */
-#chatSection{
+
+body.in-game #chatSection{
     flex:2;
     display:flex;
     flex-direction:column;
     padding:10px;
+    background:var(--panel-gradient);
+    border:2px solid var(--ui-border);
+    border-radius:14px;
 }
 
-#chatBox{
+body.in-game #chatBox{
     flex:1;
     overflow-y:auto;
-    background:#0f0c09;
+    background:linear-gradient(180deg,#17120e,#0f0c09);
+    border:1px solid #5f4827;
+    border-radius:10px;
     padding:10px;
-    border-radius:8px;
+    font-size:13px;
+    color:#ddd3bf;
 }
 
 /* HUD */
-#hudSection{
+
+body.in-game #hudSection{
     flex:1;
+    display:flex;
+    flex-direction:column;
     padding:10px;
+    background:var(--panel-gradient);
+    border:2px solid var(--ui-border);
+    border-radius:14px;
 }
 
-#hud{
+body.in-game #hud{
     display:grid;
     grid-template-columns:1fr 1fr;
     gap:8px;
 }
 
-#hud div{
-    background:#15110d;
+body.in-game #hud div{
+    background:linear-gradient(180deg,#1d1813,#15110d);
+    border:1px solid #5f4827;
+    border-radius:10px;
     padding:8px;
-    border-radius:8px;
+    color:#e5dcc9;
     display:flex;
     justify-content:space-between;
+    align-items:center;
+}
+
+/* STATS ICONS */
+
+.statItem{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    padding:8px 10px;
+    background:#1d1813;
+    border:1px solid #5f4827;
+    border-radius:8px;
+    cursor:pointer;
+    transition:0.15s;
+    font-size:13px;
+}
+
+.statItem span{
+    margin-left:auto;
+    color:var(--ui-gold);
+    font-weight:bold;
+}
+
+.statItem:hover{
+    background:#2a221a;
+    transform:translateY(-2px);
 }
 
 /* OPTIONS */
-#optionsSection{
+
+body.in-game #optionsSection{
     flex:0.8;
-    padding:10px;
     display:flex;
     flex-direction:column;
     justify-content:space-between;
-}
-
-/* =========================
-   BUTTONS MOBILE FIX
-========================= */
-
-button{
     padding:10px;
-    border:none;
-    border-radius:8px;
-    background:#7b5a2d;
-    color:white;
-    cursor:pointer;
-    min-height:42px;
-}
-
-
-/* =========================
-   MINI MAP
-========================= */
-
-#miniMap{
-    position:absolute;
-    top:15px;
-    right:15px;
-    width:220px;
-    height:140px;
-    background:#00000088;
-    border-radius:10px;
-    z-index:5;
+    background:var(--panel-gradient);
+    border:2px solid var(--ui-border);
+    border-radius:14px;
 }
 
 /* =========================
-   PLAYERS FIX (IMPORTANT)
+   PLAYER (INGAME)
 ========================= */
 
+.playerSprite,
 #player,
 .remotePlayer{
     position:absolute;
     width:64px;
     height:96px;
-    z-index:5;
+    image-rendering:pixelated;
+    filter:drop-shadow(0 4px 4px rgba(0,0,0,0.45));
     pointer-events:none;
-}
-
-/* HEAD */
-.charHead,
-.playerHead{
-    position:absolute;
-    width:24px;
-    height:24px;
-    left:50%;
-    top:18px;
-    transform:translateX(-50%);
-    border-radius:50%;
-    z-index:3;
-}
-
-/* BODY */
-.charBody,
-.playerBody{
-    position:absolute;
-    width:28px;
-    height:34px;
-    left:50%;
-    top:38px;
-    transform:translateX(-50%);
-    border-radius:10px;
-    z-index:2;
-}
-
-/* NAME */
-.playerName{
-    position:absolute;
-    top:-18px;
-    left:50%;
-    transform:translateX(-50%);
-    font-size:11px;
-    color:white;
-    z-index:10;
+    z-index:50;
 }
 
 /* =========================
-   ARMES FIX (DÉCALAGE PROPRE)
-========================= */
-
-.class-guerrier .charWeapon{
-    position:absolute;
-    width:6px;
-    height:32px;
-    right:-20px;   /* IMPORTANT */
-    top:42px;
-    transform:rotate(18deg);
-}
-
-.class-mage .charStaff{
-    position:absolute;
-    width:5px;
-    height:36px;
-    right:-18px;
-    top:38px;
-}
-
-.class-archer .charBow{
-    position:absolute;
-    width:14px;
-    height:30px;
-    right:-22px;
-    top:42px;
-}
-
-/* =========================
-   RESPONSIVE MOBILE
+   RESPONSIVE
 ========================= */
 
 @media (max-width:768px){
 
-    body{
+    body:not(.in-game){
+        justify-content:flex-start;
         overflow:auto;
     }
 
-    #gamePanel{
-        height:auto;
-        min-height:100vh;
+    .panel{
+        margin:12px auto;
     }
 
-    #mapContainer{
-        height:55vh;
-    }
-
-    #bottomUI{
+    body.in-game #bottomUI{
         flex-direction:column;
-        height:auto;
     }
 
-    #hud{
+    body.in-game #hud{
         grid-template-columns:1fr;
     }
 
-    #miniMap{
-        width:120px;
-        height:80px;
-    }
-
-    #chatBox{
-        max-height:25vh;
-    }
-
-    button{
-        font-size:14px;
+    body.in-game #mapContainer{
+        min-height:40vh;
     }
 }
-
-/* WORLD */
-#gameWorld{
-    position:relative;
-    width:2000px;
-    height:2000px;
-    transform-origin:top left;
-}
-
 /* =========================
-   TILES
+   TILES / CARTE
 ========================= */
 
 .tile{
     position:absolute;
-
     width:32px;
     height:32px;
 }
 
 .ground{
-    background:
-        linear-gradient(
-            135deg,
-            #708b52,
-            #55693e
-        );
-
-    border:
-        1px solid rgba(0,0,0,0.15);
+    background:linear-gradient(135deg,#708b52,#55693e);
+    border:1px solid rgba(0,0,0,0.15);
 }
 
 .wall{
-    background:
-        linear-gradient(
-            180deg,
-            #5e584d,
-            #39342c
-        );
-
-    border:
-        1px solid rgba(0,0,0,0.45);
+    background:linear-gradient(180deg,#5e584d,#39342c);
+    border:1px solid rgba(0,0,0,0.45);
 }
 
 .water{
-    background:
-        linear-gradient(
-            180deg,
-            #4b7ca5,
-            #315674
-        );
+    background:linear-gradient(180deg,#4b7ca5,#315674);
 }
 
 .tree{
-    background:
-        radial-gradient(circle,#4d7b38,#25451d);
-
+    background:radial-gradient(circle,#4d7b38,#25451d);
     border-radius:6px;
 }
-
-/* =========================
-   PLAYER
-========================= */
-
-#player,
-.remotePlayer{
-    z-index:50;
+.tile[data-pastille] {
+    outline: 2px solid red;
+}
+#minimapContainer {
+    position: absolute;
+    right: 20px;
+    bottom: 20px;
+    width: 200px;
+    height: 200px;
+    border: 2px solid #444;
+    background: rgba(0,0,0,0.4);
+    border-radius: 6px;
+    overflow: hidden;
 }
 
-.playerName{
-    position:absolute;
-
-    top:-18px;
-    left:-24px;
-
-    width:80px;
-
-    text-align:center;
-
-    font-size:11px;
-    font-weight:bold;
-
-    color:#fff1c8;
-
-    text-shadow:
-        0 1px 2px #000,
-        0 0 6px rgba(0,0,0,0.8);
-
-    pointer-events:none;
-
-    z-index:4;
-}
-
-/* =========================
-   MINIMAP
-========================= */
-
-#miniMap{
-    position:absolute;
-
-    top:15px;
-    right:15px;
-
-    width:220px;
-    height:140px;
-
-    border-radius:14px;
-
-    background:
-        linear-gradient(
-            180deg,
-            rgba(45,35,25,0.95),
-            rgba(20,15,10,0.95)
-        );
-
-    border:
-        2px solid var(--ui-border);
-
-    box-shadow:var(--shadow);
-
-    overflow:hidden;
-}
-
-/* =========================
-   BOTTOM UI
-========================= */
-
-#bottomUI{
-    width:100%;
-    height:30vh;
-    display:flex;
-    gap:12px;
-    padding:12px;
-    background:#1a1410;
-    z-index:10;
-}
-
-/* =========================
-   CHAT / HUD / OPTIONS
-========================= */
-/* BLOQUER LES PERSOS SOUS UI */
-#bottomUI,
-#chatSection,
-#hudSection,
-#optionsSection{
-    position:relative;
-    z-index:1000;
-}
-
-#chatSection{
-    flex:2;
-
-    display:flex;
-    flex-direction:column;
-
-    padding:10px;
-}
-
-#chatBox{
-    flex:1;
-
-    overflow-y:auto;
-
-    background:
-        linear-gradient(
-            180deg,
-            #17120e,
-            #0f0c09
-        );
-
-    border:
-        1px solid #5f4827;
-
-    border-radius:10px;
-
-    padding:10px;
-
-    font-size:13px;
-
-    color:#ddd3bf;
-}
-
-#hudSection{
-    flex:1;
-
-    display:flex;
-    flex-direction:column;
-
-    padding:10px;
-}
-
-#hud{
-    display:grid;
-
-    grid-template-columns:1fr 1fr;
-
-    gap:8px;
-}
-
-#hud div{
-    background:
-        linear-gradient(
-            180deg,
-            #1d1813,
-            #15110d
-        );
-
-    border:
-        1px solid #5f4827;
-
-    border-radius:10px;
-
-    padding:8px;
-
-    color:#e5dcc9;
-
-    display:flex;
-    justify-content:space-between;
-}
-
-#hud span{
-    color:var(--ui-gold);
-
-    font-weight:bold;
-}
-
-#optionsSection{
-    flex:0.8;
-
-    display:flex;
-    flex-direction:column;
-    justify-content:space-between;
-
-    padding:10px;
-}
-
-/* =========================
-   POPUP
-========================= */
-
-#kickPopup{
-    position:fixed;
-
-    inset:0;
-
-    background:
-        rgba(0,0,0,0.75);
-
-    display:flex;
-    justify-content:center;
-    align-items:center;
-
-    z-index:999999;
-}
-
-#kickPopupBox{
-    min-width:300px;
-
-    padding:24px;
-
-    border-radius:16px;
-
-    background:
-        linear-gradient(
-            180deg,
-            #3a3128,
-            #241d17
-        );
-
-    border:
-        2px solid var(--ui-border);
-
-    color:var(--ui-text);
-
-    text-align:center;
-
-    box-shadow:
-        0 10px 30px rgba(0,0,0,0.6);
+#minimap {
+    width: 100%;
+    height: 100%;
+    image-rendering: pixelated;
 }

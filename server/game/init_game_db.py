@@ -11,6 +11,7 @@ def init_game_db():
         id INTEGER,
         account_id INTEGER NOT NULL,
         name TEXT NOT NULL,
+
         level INTEGER NOT NULL DEFAULT 1,
         xp INTEGER NOT NULL DEFAULT 0,
         class TEXT NOT NULL DEFAULT 'Guerrier',
@@ -19,6 +20,8 @@ def init_game_db():
         -- POSITION (MMO SAVE SYSTEM)
         pos_x INTEGER NOT NULL DEFAULT 2,
         pos_y INTEGER NOT NULL DEFAULT 2,
+        map_x INTEGER NOT NULL DEFAULT 0,
+        map_y INTEGER NOT NULL DEFAULT 0,
 
         -- STATS
         hp INTEGER NOT NULL DEFAULT 100,
@@ -45,4 +48,4 @@ def init_game_db():
 
     con.close()
 
-    print("✔ game.db initialisé (SAFE mode + POSITION SYSTEM)")
+    print("✔ game.db initialisé (MULTI-MAPS + POSITION SYSTEM)")

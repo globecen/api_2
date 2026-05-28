@@ -10,241 +10,210 @@
 
 <body>
 
-<h1>Jeu RPG</h1>
+    <h1>Jeu RPG</h1>
 
-<!-- LOGIN -->
-<div id="loginPanel" class="panel">
+    <!-- LOGIN -->
+    <div id="loginPanel" class="panel">
 
-    <h2>Connexion</h2>
+        <h2>Connexion</h2>
 
-    <input id="loginUser" placeholder="Nom d'utilisateur">
+        <input id="loginUser" placeholder="Nom d'utilisateur">
 
-    <input id="loginPass"
-           type="password"
-           placeholder="Mot de passe">
+        <input id="loginPass" type="password" placeholder="Mot de passe">
 
-    <button onclick="login()">
-        Se connecter
-    </button>
-
-    <p>
-        Pas de compte ?
-        <a href="#"
-           onclick="showRegister()">
-            Créer un compte
-        </a>
-    </p>
-
-</div>
-<!-- REGISTER -->
-<div id="registerPanel"
-     class="panel"
-     style="display:none;">
-
-    <h2>Créer un compte</h2>
-
-    <input id="regUser"
-           placeholder="Nom d'utilisateur">
-
-    <input id="regPass"
-           type="password"
-           placeholder="Mot de passe">
-
-    <button onclick="register()">
-        Créer le compte
-    </button>
-
-    <p>
-        Déjà un compte ?
-        <a href="#"
-           onclick="showLogin()">
+        <button onclick="login()">
             Se connecter
-        </a>
-    </p>
+        </button>
 
-</div>
+        <p>
+            Pas de compte ?
+            <a href="#" onclick="showRegister()">
+                Créer un compte
+            </a>
+        </p>
 
-<!-- CHARACTER -->
-<div id="characterPanel"
-     class="panel"
-     style="display:none;">
+    </div>
+    <!-- REGISTER -->
+    <div id="registerPanel" class="panel" style="display:none;">
 
-    <h2>Vos personnages</h2>
+        <h2>Créer un compte</h2>
 
-    <div id="charList"></div>
+        <input id="regUser" placeholder="Nom d'utilisateur">
 
-    <button onclick="showCreateCharacter()">
-        Créer un personnage
-    </button>
+        <input id="regPass" type="password" placeholder="Mot de passe">
 
-    <button onclick="logout()"
-            class="dangerBtn">
-        Déconnexion
-    </button>
+        <button onclick="register()">
+            Créer le compte
+        </button>
 
-</div>
-
-<!-- CREATE CHARACTER -->
-<div id="createCharacterPanel"
-     class="panel"
-     style="display:none;">
-
-    <h2>Créer un personnage</h2>
-
-    <input id="charName"
-           placeholder="Nom du personnage">
-
-    <select id="charClassSelect"
-            onchange="updatePreview()">
-
-        <option>Guerrier</option>
-        <option>Mage</option>
-        <option>Archer</option>
-        <option>Nécromancien</option>
-
-    </select>
-
-    <input id="charColor"
-           type="color"
-           value="#ff0000"
-           oninput="updatePreview()">
-
-    <div id="previewBox">
-
-        <div id="charSprite"
-             class="charSprite">
-
-            <div class="charAura"></div>
-            <div class="charBody"></div>
-            <div class="charHead"></div>
-            <div class="charWeapon"></div>
-            <div class="charStaff"></div>
-            <div class="charBow"></div>
-
-        </div>
+        <p>
+            Déjà un compte ?
+            <a href="#" onclick="showLogin()">
+                Se connecter
+            </a>
+        </p>
 
     </div>
 
-    <button onclick="createCharacter()">
-        Créer
-    </button>
+    <!-- CHARACTER -->
+    <div id="characterPanel" class="panel" style="display:none;">
 
-    <button onclick="showCharacters()">
-        Retour
-    </button>
+        <h2>Vos personnages</h2>
 
-</div>
+        <div id="charList"></div>
 
-<!-- INSTANCES -->
-<div id="instancePanel"
-     class="panel"
-     style="display:none;">
+        <button onclick="showCreateCharacter()">
+            Créer un personnage
+        </button>
 
-    <h2>Instances</h2>
+        <button onclick="logout()" class="dangerBtn">
+            Déconnexion
+        </button>
 
-    <div id="instanceList"></div>
-
-</div>
-
-<!-- GAME -->
-<div id="gamePanel"
-     style="display:none;">
-
-    <!-- MAP -->
-    <div id="mapContainer">
-        <div id="gameWorld"></div>
-        <div id="playerSprite" class="playerSprite ..."></div>
     </div>
 
-    <!-- UI BAS -->
-    <div id="bottomUI">
+    <!-- CREATE CHARACTER -->
+    <div id="createCharacterPanel" class="panel" style="display:none;">
 
-        <!-- CHAT -->
-        <div id="chatSection">
+        <h2>Créer un personnage</h2>
 
-            <h3>Chat</h3>
+        <input id="charName" placeholder="Nom du personnage">
 
-            <div id="chatBox"></div>
+        <select id="charClassSelect" onchange="updatePreview()">
 
-            <input id="chatInput"
-                   placeholder="Message...">
+            <option>Guerrier</option>
+            <option>Mage</option>
+            <option>Archer</option>
+            <option>Nécromancien</option>
 
-            <button onclick="sendChatMessage()">
-                Envoyer
-            </button>
+        </select>
 
-        </div>
+        <input id="charColor" type="color" value="#ff0000" oninput="updatePreview()">
 
-        <!-- HUD -->
-        <div id="hudSection">
+        <div id="previewBox">
 
-            <h3>Personnage</h3>
+            <div id="charSprite" class="charSprite">
 
-            <div id="hud">
-
-                <div>
-                    Nom :
-                    <span id="hudName"></span>
-                </div>
-
-                <div>
-                    Classe :
-                    <span id="hudClass"></span>
-                </div>
-
-                <div>
-                    Niveau :
-                    <span id="hudLevel"></span>
-                </div>
-
-                <div>
-                    HP :
-                    <span id="hudHp"></span>
-                </div>
-
-                <div>
-                    Mana :
-                    <span id="hudMana"></span>
-                </div>
-
-                <div>
-                    Force :
-                    <span id="hudStr"></span>
-                </div>
-
-                <div>
-                    Agilité :
-                    <span id="hudAgi"></span>
-                </div>
-
-                <div>
-                    Intelligence :
-                    <span id="hudInt"></span>
-                </div>
+                <div class="charAura"></div>
+                <div class="charBody"></div>
+                <div class="charHead"></div>
+                <div class="charWeapon"></div>
+                <div class="charStaff"></div>
+                <div class="charBow"></div>
 
             </div>
 
         </div>
 
-        <!-- OPTIONS -->
-        <div id="optionsSection">
+        <button onclick="createCharacter()">
+            Créer
+        </button>
 
-            <button onclick="returnToCharacterSelect()">
-                Retour personnages
-            </button>
+        <button onclick="showCharacters()">
+            Retour
+        </button>
 
-            <button onclick="logout()"
-                    class="dangerBtn">
-                Déconnexion
-            </button>
+    </div>
+
+    <!-- INSTANCES -->
+    <div id="instancePanel" class="panel" style="display:none;">
+
+        <h2>Instances</h2>
+
+        <div id="instanceList"></div>
+
+    </div>
+    <div id="mapLoading" style="
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    font-size: 32px;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+">
+        Chargement de la carte...
+    </div>
+
+    <!-- GAME -->
+    <div id="gamePanel" style="display:none;">
+
+        <!-- MAP -->
+        <div id="mapContainer">
+            <div id="gameWorld"></div>
+            <div id="player"></div>
+        </div>
+
+        <!-- UI BAS -->
+        <div id="bottomUI">
+
+            <!-- CHAT -->
+            <div id="chatSection">
+
+                <h3>Chat</h3>
+
+                <div id="chatBox"></div>
+
+                <input id="chatInput" placeholder="Message...">
+
+                <button onclick="sendChatMessage()">
+                    Envoyer
+                </button>
+
+            </div>
+
+            <!-- HUD -->
+            <div id="hudSection">
+
+                <h3>Personnage</h3>
+
+                <div id="hud">
+                    <div>
+                        Nom :
+                        <span id="hudName"></span>
+                    </div>
+                    <div>
+                        Classe :
+                        <span id="hudClass"></span>
+                    </div>
+                    <div>
+                        Niveau :
+                        <span id="hudLevel"></span>
+                    </div>
+                    <div class="statItem">❤️ Vitalité : <span id="hudHp">120</span></div>
+                    <div class="statItem">✊ Force : <span id="hudMana"></span></div>
+                    <div class="statItem">🪽 Agilité : <span id="hudStr"></span></div>
+                    <div class="statItem">🔵🔴 Mana : <span id="hudAgi"></span></div>
+                    <div class="statItem">📘 Intelligence : <span id="hudInt"></span></div>
+
+                </div>
+
+            </div>
+            <div id="minimapWrapper">
+                    <div id="minimapCoords">X: 0 | Y: 0 | Map: 0,0</div>
+                    <canvas id="minimap" width="200" height="200"></canvas>
+                </div>
+            <!-- OPTIONS -->
+            <div id="optionsSection">
+
+                <button onclick="returnToCharacterSelect()">
+                    Retour personnages
+                </button>
+                <button onclick="logout()" class="dangerBtn">
+                    Déconnexion
+                </button>
+
+            </div>
 
         </div>
 
     </div>
 
-</div>
-
-<script src="script.js"></script>
+    <script src="script.js"></script>
 
 </body>
+
 </html>

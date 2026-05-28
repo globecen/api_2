@@ -25,8 +25,11 @@ class GameDatabase:
 
         self.db.execute(
             """
-            INSERT INTO characters (id, account_id, name, level, xp, class, appearance)
-            VALUES (?, ?, ?, 1, 0, ?, ?)
+            INSERT INTO characters (
+                id, account_id, name, level, xp, class, appearance,
+                pos_x, pos_y, map_x, map_y
+            )
+            VALUES (?, ?, ?, 1, 0, ?, ?, 2, 2, 0, 0)
             """,
             [new_id, account_id, name, char_class, json.dumps(appearance)]
         )
@@ -35,13 +38,25 @@ class GameDatabase:
 
     def get_character(self, char_id: int):
         return self.db.execute(
-            "SELECT id, account_id, name, level, xp, class, appearance FROM characters WHERE id = ?",
+            """
+            SELECT
+                id, account_id, name, level, xp, class, appearance,
+                pos_x, pos_y, map_x, map_y
+            FROM characters
+            WHERE id = ?
+            """,
             [char_id]
         ).fetchone()
 
     def list_characters_for_account(self, account_id: int):
         return self.db.execute(
-            "SELECT id, name, level, xp, class, appearance FROM characters WHERE account_id = ?",
+            """
+            SELECT
+                id, name, level, xp, class, appearance,
+                pos_x, pos_y, map_x, map_y
+            FROM characters
+            WHERE account_id = ?
+            """,
             [account_id]
         ).fetchall()
 
@@ -55,23 +70,26 @@ class GameDatabase:
             [level, xp, char_id]
         )
         return self.get_character(char_id)
-    
-    def update_position(self, char_id: int, x: int, y: int):
+
+    # -----------------------------
+    # POSITION (multi-maps)
+    # -----------------------------
+    def update_position(self, char_id: int, x: int, y: int, map_x: int, map_y: int):
         self.db.execute("""
             UPDATE characters
-            SET pos_x = ?, pos_y = ?
+            SET pos_x = ?, pos_y = ?, map_x = ?, map_y = ?
             WHERE id = ?
-        """, [x, y, char_id])
+        """, [x, y, map_x, map_y, char_id])
 
     def get_position(self, char_id: int):
         row = self.db.execute("""
-            SELECT pos_x, pos_y
+            SELECT pos_x, pos_y, map_x, map_y
             FROM characters
             WHERE id = ?
         """, [char_id]).fetchone()
 
         if not row:
-            return (2, 2)
+            # Valeurs par défaut
+            return (2, 2, 0, 0)
 
         return row
-    

@@ -1,20 +1,23 @@
 let chatWS = null;
-const URL_BASE = "85.69.92.4";
-//const URL_BASE = "127.0.0.1";
-const AUTH = "http://"+URL_BASE+":3001";
-const GAME = "http://"+URL_BASE+":3000";
-
+//const URL_BASE = "85.69.92.4";
+const URL_BASE = "127.0.0.1";
+const AUTH = "http://" + URL_BASE + ":3001";
+const GAME = "http://" + URL_BASE + ":3000";
+let isMapLoading = false;
 let sessionId = null;
 let accountId = null;
 let selectedCharacter = null;
 let currentInstanceId = null;
 let ws = null;
 let gameWS = null;
-const remotePlayers = {};
+const remotePlayers = {}; // id → { x, y, dom }
+let saveTimeout = null;
 /* =========================
    MAP
 ========================= */
-let saveTimeout = null;
+const MAPS = {};
+const WORLD_WIDTH = 3;   // nombre de maps en X
+const WORLD_HEIGHT = 3;  // nombre de maps en Y
 
 
 const TILE_SIZE = 32;
@@ -25,7 +28,6 @@ let currentMapY = 0;
 const MAP_WIDTH = 25;
 const MAP_HEIGHT = 18;
 
-const MAPS = {};
 
 const player = {
     x: null,
@@ -132,37 +134,51 @@ let path = [];
 let moving = false;
 
 
-function moveStep() {
+async function moveStep() {
     if (!path.length) {
         moving = false;
         return;
     }
 
     const next = path.shift();
-
+    drawMinimap();
     player.x = next.x;
     player.y = next.y;
-    updatePlayer();
-    if (gameWS && gameWS.readyState === WebSocket.OPEN) {
 
+    updatePlayer();
+    drawMinimap();
+    updateMinimapCoords();
+
+    // 🔥 ATTENDRE le changement de carte
+    const changed = await checkMapTransition();
+    if (changed) return;
+
+    // WebSocket
+    if (gameWS && gameWS.readyState === WebSocket.OPEN) {
         gameWS.send(JSON.stringify({
             type: "move",
             x: player.x,
-            y: player.y
+            y: player.y,
+            map_x: currentMapX,
+            map_y: currentMapY
         }));
     }
+
+    // Animation
     const sprite = document.getElementById("playerSprite");
     if (sprite) {
         sprite.classList.add("walking");
-
-        setTimeout(() => {
-            sprite.classList.remove("walking");
-        }, 150);
+        setTimeout(() => sprite.classList.remove("walking"), 150);
     }
-    scheduleSavePosition();
-    setTimeout(moveStep, 60); // vitesse déplacement
 
+    // Sauvegarde BDD
+    scheduleSavePosition();
+
+    setTimeout(moveStep, 60);
 }
+
+
+
 /* ------------------------------
    DOM
 ------------------------------ */
@@ -214,8 +230,9 @@ function showInstances() {
 }
 
 function showGame() {
+    document.body.classList.add("in-game");
     hideAllPanels();
-    gamePanel.style.display = "block";
+    gamePanel.style.display = "flex"; // pas block
 }
 
 /* ------------------------------
@@ -249,6 +266,15 @@ async function logout() {
     cleanupGameUI();
     showLogin();
 }
+function clearRemotePlayers() {
+    for (const id in remotePlayers) {
+        const rp = remotePlayers[id];
+        if (rp.dom) rp.dom.remove();
+        delete remotePlayers[id];
+    }
+}
+
+
 async function loadCharacterPosition(characterId) {
     const res = await fetch(`${GAME}/character/${characterId}`, {
         headers: {
@@ -440,62 +466,60 @@ async function createCharacter() {
     await loadCharacters();
 }
 
-function generateMap(w, h) {
+function renderMap() {
+    const key = `${currentMapX}_${currentMapY}`;
+    const mapData = MAPS[key];
 
-    const map = [];
-
-    for (let y = 0; y < h; y++) {
-
-        const row = [];
-
-        for (let x = 0; x < w; x++) {
-
-            // murs bords
-            if (
-                x === 0 ||
-                y === 0 ||
-                x === w - 1 ||
-                y === h - 1
-            ) {
-                row.push(1);
-            } else {
-                row.push(0);
-            }
-        }
-
-        map.push(row);
+    if (!mapData) {
+        console.error("❌ MAP NON CHARGÉE :", key);
+        return;
     }
 
-    return map;
-}
-function renderMap() {
+    // --- Correction : accepter les deux formats ---
+    const tiles = mapData.tiles || mapData;
+
+    if (!Array.isArray(tiles) || !tiles.length) {
+        console.error("❌ MAP SANS TILES :", key, mapData);
+        return;
+    }
 
     const world = document.getElementById("gameWorld");
-    if (!world) return;
-
     world.innerHTML = "";
 
-    const key = `${currentMapX}_${currentMapY}`;
+    const TILE_SIZE = 32;
 
-    if (!MAPS[key]) {
-        MAPS[key] = generateMap(MAP_WIDTH, MAP_HEIGHT);
-    }
+    for (let y = 0; y < tiles.length; y++) {
+        for (let x = 0; x < tiles[y].length; x++) {
 
-    const map = MAPS[key];
+            const t = tiles[y][x];
+            const div = document.createElement("div");
+            div.classList.add("tile");
 
-    for (let y = 0; y < map.length; y++) {
-        for (let x = 0; x < map[y].length; x++) {
+            div.style.left = (x * TILE_SIZE) + "px";
+            div.style.top = (y * TILE_SIZE) + "px";
 
-            const tile = document.createElement("div");
-            tile.className = "tile " + (map[y][x] === 1 ? "wall" : "ground");
+            switch (t) {
+                case 0: div.classList.add("ground"); break;
+                case 1: div.classList.add("wall"); break;
+                case 6: div.classList.add("water"); break;
+                case 7: div.classList.add("tree"); break;
 
-            tile.style.left = (x * TILE_SIZE) + "px";
-            tile.style.top = (y * TILE_SIZE) + "px";
+                case 2:
+                case 3:
+                case 4:
+                case 5:
+                    div.classList.add("ground");
+                    div.dataset.pastille = t;
+                    break;
+            }
 
-            world.appendChild(tile);
+            world.appendChild(div);
         }
     }
 }
+
+
+
 function createPlayer() {
 
     const world = document.getElementById("gameWorld");
@@ -593,9 +617,22 @@ document.addEventListener("click", e => {
         y: Math.floor((e.clientY - rect.top) / TILE_SIZE)
     };
 
-    const map = MAPS[`${currentMapX}_${currentMapY}`];
-    if (!map) return;
+    const mapObj = MAPS[`${currentMapX}_${currentMapY}`];
+    if (!mapObj) return;
 
+    const map = mapObj.tiles;   // 🔥 la vraie grille 2D
+
+    // 🔥 Vérification des limites
+    if (
+        target.y < 0 ||
+        target.y >= map.length ||
+        target.x < 0 ||
+        target.x >= map[0].length
+    ) {
+        return; // clic hors map → on ignore
+    }
+
+    // 🔥 Vérification obstacle
     if (map[target.y][target.x] === 1) return;
 
     const start = { x: player.x, y: player.y };
@@ -603,45 +640,224 @@ document.addEventListener("click", e => {
     path = findPath(start, target, map);
 
     if (path.length > 0) {
-        path.shift(); // retire position actuelle
+        path.shift();
         moving = true;
         moveStep();
     }
 });
+
 /* ------------------------------
    PREVIEW
 ------------------------------ */
+
+
+async function loadMapFile(mapX, mapY) {
+    const key = `${mapX}_${mapY}`;
+
+    // Déjà chargée → on renvoie l'objet complet
+    if (MAPS[key]) {
+        console.log(`📦 Map déjà en cache : ${key}`);
+        return MAPS[key]; // MAPS[key] = { id, width, height, tiles }
+    }
+
+    const url = `/maps/${key}.json`;
+    const res = await fetch(url);
+
+    if (!res.ok) {
+        console.error(`❌ Impossible de charger ${url} (HTTP ${res.status})`);
+        return null;
+    }
+
+    const data = await res.json();
+
+    // Stockage de l'objet complet
+    MAPS[key] = data;
+
+    return data;
+}
+
+
+async function loadMapChunk() {
+    const key = `${currentMapX}_${currentMapY}`;
+
+    const mapData = await loadMapFile(currentMapX, currentMapY);
+
+    if (!mapData) {
+        console.warn("⚠ Impossible de charger la map :", currentMapX, currentMapY);
+        return false;
+    }
+
+    currentMapData = mapData.tiles; // 🔥 obligatoire
+
+    return true;
+}
+
+
+
+
+
+
+async function preloadAllMaps() {
+    const coords = [
+        [-1, 2], [0, 2], [1, 2], [2, 2],
+        [-1, 1], [0, 1], [1, 1], [2, 1],
+        [-1, 0], [0, 0], [1, 0], [2, 0]
+    ];
+
+    for (const [mx, my] of coords) {
+        await loadMapFile(mx, my);
+    }
+
+    console.log("✔ Toutes les maps sont préchargées");
+}
+
+async function changeMap(newX, newY, newPlayerX, newPlayerY) {
+
+    if (isMapLoading) return false;
+    isMapLoading = true;
+
+    currentMapX = newX;
+    currentMapY = newY;
+
+    player.x = newPlayerX;
+    player.y = newPlayerY;
+
+    const ok = await loadMapChunk();
+
+    if (!ok || !currentMapData) {
+        console.error("❌ Impossible de charger la map", newX, newY);
+        isMapLoading = false;
+        return false;
+    }
+
+    renderMap();
+    drawMinimap();
+    console.log("renderMap → currentMapData =", currentMapData);
+    createPlayer();
+    updatePlayer();
+    drawMinimap();
+    updateMinimapCoords();
+    clearRemotePlayers();
+    await loadRemotePlayers();
+    updateCamera();
+
+    isMapLoading = false;
+    return true;
+}
+
+
+
+
+function showMapLoading(show) {
+    const el = document.getElementById("mapLoading");
+    el.style.display = show ? "flex" : "none";
+}
+
+
+async function checkMapTransition() {
+    const key = `${currentMapX}_${currentMapY}`;
+    const tiles = MAPS[key].tiles || MAPS[key];
+
+    const t = tiles[player.y][player.x];
+
+    switch (t) {
+        case 2: // haut
+            return await changeMap(
+                currentMapX,
+                currentMapY + 1,
+                player.x,
+                tiles.length - 2
+            );
+
+        case 3: // bas
+            return await changeMap(
+                currentMapX,
+                currentMapY - 1,
+                player.x,
+                1
+            );
+
+        case 4: // gauche
+            return await changeMap(
+                currentMapX - 1,
+                currentMapY,
+                tiles[0].length - 2,
+                player.y
+            );
+
+        case 5: // droite
+            return await changeMap(
+                currentMapX + 1,
+                currentMapY,
+                1,
+                player.y
+            );
+    }
+
+    return false;
+}
+
+
+
 async function initGame() {
     if (!selectedCharacter || !currentInstanceId) return;
 
-    showGame();
+    // 1. Récupérer l'état complet du joueur
+    const res = await fetch(`${GAME}/me/state`, {
+        method: "GET",
+        headers: {
+            Authorization: "Session " + sessionId
+        }
+    });
 
-    const key = `${currentMapX}_${currentMapY}`;
-
-    if (!MAPS[key]) {
-        MAPS[key] = generateMap(MAP_WIDTH, MAP_HEIGHT);
+    if (res.status === 401) {
+        showLogoutPopup();
+        return;
     }
 
-    // 🔥 ATTEND LA POSITION BDD
-    const pos = await loadCharacterPosition(selectedCharacter.id);
+    const state = await res.json();
 
-    console.log("Loaded position:", pos);
+    if (!state.in_instance) {
+        console.warn("Le joueur n'est pas dans une instance.");
+        return;
+    }
 
-    player.x = pos.x;
-    player.y = pos.y;
+    // 2. Mettre à jour la carte et la position
+    currentMapX = state.character.map_x;
+    currentMapY = state.character.map_y;
 
+    player.x = state.character.pos_x;
+    player.y = state.character.pos_y;
+
+    // 3. Précharger toutes les maps JSON
+    await preloadAllMaps();
+
+    // 4. Charger la map actuelle
+    await loadMapChunk();
+
+    // 5. Construire la map
     renderMap();
+
+    // 6. Créer le joueur
     createPlayer();
+    updatePlayer(); // recentre la caméra
+
+    // 7. Charger les autres joueurs
     await loadRemotePlayers();
-    updatePlayer();
-    // 🔥 reset visuel des joueurs distants
-    Object.values(remotePlayers).forEach(p => p.remove());
-    Object.keys(remotePlayers).forEach(k => delete remotePlayers[k]);
+
+    // 8. Connecter les WebSockets
     connectGameWS();
     openChatWebSocket(currentInstanceId);
+
+    // 9. Charger les stats
     loadCharacterStats(selectedCharacter.id);
 
+    // 10. Afficher le jeu
+    showGame();
 }
+
+
+
 async function loadRemotePlayers() {
 
     if (!currentInstanceId) return;
@@ -657,15 +873,26 @@ async function loadRemotePlayers() {
     const data = await res.json();
 
     data.players.forEach(p => {
-
         if (p.id === selectedCharacter.id) return;
-
-        createRemotePlayer(p);
+        createOrUpdateRemotePlayer(p);
     });
 }
+function updateMinimapCoords() {
+    const el = document.getElementById("minimapCoords");
+    if (!el) return;
+
+    el.textContent = `X: ${player.x} | Y: ${player.y} | Map: ${currentMapX},${currentMapY}`;
+}
+
 function createRemotePlayer(p) {
 
     const world = document.getElementById("gameWorld");
+
+    // 🔥 Si le joueur existe déjà → on met juste à jour
+    if (remotePlayers[p.account_id]) {
+        createOrUpdateRemotePlayer(p);
+        return;
+    }
 
     const el = document.createElement("div");
     el.className = "remotePlayer";
@@ -695,7 +922,16 @@ function createRemotePlayer(p) {
     el.style.top = (p.y * TILE_SIZE) + "px";
 
     world.appendChild(el);
+
+    // 🔥 On stocke le joueur pour les updates WebSocket
+    remotePlayers[p.account_id] = {
+        id: p.account_id,
+        x: p.x,
+        y: p.y,
+        dom: el
+    };
 }
+
 window.addEventListener("load", async () => {
     sessionId = localStorage.getItem("sessionId");
 
@@ -751,16 +987,18 @@ async function savePosition() {
         body: JSON.stringify({
             char_id: selectedCharacter.id,
             x: player.x,
-            y: player.y
+            y: player.y,
+            map_x: currentMapX,
+            map_y: currentMapY
         })
     });
 
-    // Si la session est expirée → popup + reload
     if (res.status === 401) {
         showLogoutPopup();
         return;
     }
 }
+
 
 function showLogoutPopup() {
     const div = document.createElement("div");
@@ -802,7 +1040,7 @@ function showLogoutPopup() {
 }
 
 
-        
+
 function updatePreview() {
     const color = charColor.value;
     const name = charName.value.trim() || "(vide)";
@@ -910,6 +1148,50 @@ async function joinInstance(id) {
     showGame();
     await initGame();
 }
+async function loadCharacterPositionAndMap(charId) {
+    const res = await fetch(`${GAME}/character/get_position`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json",
+            Authorization: "Session " + sessionId
+        },
+        body: JSON.stringify({ char_id: charId })
+    });
+
+    if (res.status === 401) {
+        showLogoutPopup();
+        return null;
+    }
+
+    return await res.json();
+}
+function syncRemotePlayersList(serverPlayers) {
+
+    const alive = new Set(serverPlayers.map(p => p.id));
+
+    // 🔥 SUPPRIMER les joueurs absents
+    for (const id in remotePlayers) {
+        if (!alive.has(Number(id))) {
+            const rp = remotePlayers[id];
+            if (rp.dom) rp.dom.remove();
+            delete remotePlayers[id];
+        }
+    }
+
+    // 🔥 CRÉER / METTRE À JOUR les joueurs présents
+    serverPlayers.forEach(p => {
+        if (p.id !== selectedCharacter.id) {
+            createOrUpdateRemotePlayer(p);
+        }
+    });
+}
+
+
+function scheduleSavePosition() {
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(savePosition, 200);
+}
+
 function connectGameWS() {
 
     // fermer ancien socket proprement
@@ -922,90 +1204,93 @@ function connectGameWS() {
     if (!currentInstanceId || !selectedCharacter) return;
 
     gameWS = new WebSocket(
-        `ws://`+URL_BASE+`:3000/ws/game/${currentInstanceId}/${selectedCharacter.id}`
+        `ws://${URL_BASE}:3000/ws/game/${currentInstanceId}/${selectedCharacter.id}`
     );
 
     gameWS.onopen = () => {
         console.log("Game WS connected");
     };
 
-    gameWS.onclose = () => {
-
-        // si on était en jeu → retour propre UI
-        if (currentInstanceId) {
-            forceReturnToCharacterSelect();
-        }
-    };
+    gameWS.onclose = () => { };
 
     gameWS.onmessage = (event) => {
 
         const data = JSON.parse(event.data);
 
-        // PLAYERS SNAPSHOT
+        // SNAPSHOT COMPLET
         if (data.type === "players") {
-
-            Object.values(remotePlayers).forEach(p => p.remove());
-            Object.keys(remotePlayers).forEach(k => delete remotePlayers[k]);
-
-            data.players.forEach(p => {
-                if (p.id === selectedCharacter.id) return;
-                createOrUpdateRemotePlayer(p);
-            });
+            syncRemotePlayersList(data.players);
+            return;
         }
 
-        // MOVE
+        // MOUVEMENT
         if (data.type === "move") {
-
-            if (data.character_id === selectedCharacter.id) return;
-
-            const p = remotePlayers[data.character_id];
-            if (!p) return;
-
-            p.style.left = `${data.x * TILE_SIZE}px`;
-            p.style.top = `${data.y * TILE_SIZE}px`;
+            if (data.character_id !== selectedCharacter.id) {
+                createOrUpdateRemotePlayer(data);
+            }
+            return;
         }
 
-        // DISCONNECT
+        // DÉCONNEXION
         if (data.type === "disconnect") {
-
             const id = data.character_id || data.id;
-
-            const p = remotePlayers[id];
-            if (p) {
-                p.remove();
+            if (remotePlayers[id]) {
+                remotePlayers[id].dom.remove();
                 delete remotePlayers[id];
             }
+            return;
         }
     };
+
+
+
 }
+
+
 
 
 function createOrUpdateRemotePlayer(data) {
 
-    let el = remotePlayers[data.id ?? data.character_id];
     const id = data.id ?? data.character_id;
-
     const world = document.getElementById("gameWorld");
     if (!world) return;
 
-    if (!el) {
+    let rp = remotePlayers[id];
 
-        el = document.createElement("div");
+    // --- Création structure ---
+    if (!rp) {
+        rp = remotePlayers[id] = {
+            id,
+            x: data.x,
+            y: data.y,
+            name: data.name,
+            class: data.class,
+            appearance: data.appearance,
+            dom: null
+        };
+    }
+
+    // --- Mise à jour logique ---
+    rp.x = data.x;
+    rp.y = data.y;
+
+    // --- Création DOM si nécessaire ---
+    if (!rp.dom) {
+
+        const el = document.createElement("div");
         el.className = "remotePlayer";
         el.id = "remote_" + id;
 
-        const color = data.appearance?.color || "#00aaff";
+        const color = rp.appearance?.color || "#00aaff";
 
         let spriteClass = "class-guerrier";
-        if (data.class === "Mage") spriteClass = "class-mage";
-        else if (data.class === "Archer") spriteClass = "class-archer";
-        else if (data.class === "Nécromancien") spriteClass = "class-necromancien";
+        if (rp.class === "Mage") spriteClass = "class-mage";
+        else if (rp.class === "Archer") spriteClass = "class-archer";
+        else if (rp.class === "Nécromancien") spriteClass = "class-necromancien";
 
         el.innerHTML = `
-            <div class="playerName">${data.name}</div>
-
-            <div class="charSprite ${spriteClass}"
-                 style="--char-color:${color}">
+            <div class="playerName">${rp.name ?? ""}</div>
+            <div class="charSprite ${spriteClass}" style="--char-color:${color}">
                 <div class="charAura"></div>
                 <div class="charBody"></div>
                 <div class="charHead"></div>
@@ -1016,30 +1301,58 @@ function createOrUpdateRemotePlayer(data) {
         `;
 
         world.appendChild(el);
-        remotePlayers[id] = el;
-        el.id = "remote_" + id;
+        rp.dom = el;
     }
 
-    el.style.left = `${data.x * TILE_SIZE}px`;
-    el.style.top = `${data.y * TILE_SIZE}px`;
-
-    if (!el.parentNode) world.appendChild(el);
+    // --- Mise à jour DOM ---
+    rp.dom.style.left = `${rp.x * TILE_SIZE}px`;
+    rp.dom.style.top = `${rp.y * TILE_SIZE}px`;
 }
-function syncRemotePlayers(serverPlayers) {
 
-    const serverIds = new Set(serverPlayers.map(p => p.id));
 
-    Object.keys(remotePlayers).forEach(id => {
-        if (!serverIds.has(Number(id))) {
-            remotePlayers[id].remove();
+
+
+
+
+async function syncRemotePlayers() {
+
+    if (!currentInstanceId) return;
+
+    const res = await fetch(`${GAME}/instance/players/${currentInstanceId}`, {
+        headers: { Authorization: "Session " + sessionId }
+    });
+
+    if (!res.ok) return;
+
+    const data = await res.json();
+    const serverList = data.players;
+
+    const stillAlive = new Set();
+
+    // --- Création / mise à jour ---
+    serverList.forEach(p => {
+        if (p.id === selectedCharacter.id) return;
+
+        createOrUpdateRemotePlayer(p);
+        stillAlive.add(p.id);
+    });
+
+    // --- Suppression des joueurs disparus ---
+    for (const id in remotePlayers) {
+        if (!stillAlive.has(Number(id))) {
+            remotePlayers[id].dom.remove();
             delete remotePlayers[id];
         }
-    });
+    }
 }
 
+
 function cleanupGameUI() {
-    Object.values(remotePlayers).forEach(p => p.remove());
-    Object.keys(remotePlayers).forEach(k => delete remotePlayers[k]);
+    for (const id in remotePlayers) {
+        const rp = remotePlayers[id];
+        if (rp.dom) rp.dom.remove();
+        delete remotePlayers[id];
+    }
     // =========================
     // MAP
     // =========================
@@ -1118,6 +1431,7 @@ function cleanupGameUI() {
 
     currentMapX = 0;
     currentMapY = 0;
+    document.body.classList.remove("in-game");
 }
 /* ------------------------------
    CHAT
@@ -1126,7 +1440,7 @@ function cleanupGameUI() {
 function openChatWebSocket(instanceId) {
     if (chatWS) chatWS.close();
 
-    chatWS = new WebSocket(`ws://`+URL_BASE+`:3000/ws/chat/${instanceId}`);
+    chatWS = new WebSocket(`ws://` + URL_BASE + `:3000/ws/chat/${instanceId}`);
 
     const chatBox = document.getElementById("chatBox");
     chatBox.innerHTML = "";
@@ -1148,7 +1462,76 @@ function sendChatMessage() {
     chatWS.send(msg);
     input.value = "";
 }
+function drawMinimap() {
+    const canvas = document.getElementById("minimap");
+    if (!canvas) return;
 
+    const ctx = canvas.getContext("2d");
+    const size = canvas.width;
+
+    const tileSize = size / (WORLD_WIDTH * MAP_WIDTH);
+
+    ctx.clearRect(0, 0, size, size);
+
+    // --- DESSIN DE TOUTES LES MAPS ---
+    for (let my = 0; my < WORLD_HEIGHT; my++) {
+        for (let mx = 0; mx < WORLD_WIDTH; mx++) {
+
+            const key = `${mx}_${my}`;
+            const map = MAPS[key];
+            if (!map) continue;
+
+            for (let y = 0; y < MAP_HEIGHT; y++) {
+                for (let x = 0; x < MAP_WIDTH; x++) {
+
+                    const tile = map[y]?.[x];
+                    if (tile === undefined) continue;
+
+                    if (tile === 0) ctx.fillStyle = "#4CAF50"; // herbe
+                    else if (tile === 1) ctx.fillStyle = "#2196F3"; // eau
+                    else if (tile === 2) ctx.fillStyle = "#616161"; // mur
+
+                    const px = (mx * MAP_WIDTH + x) * tileSize;
+                    const py = (my * MAP_HEIGHT + y) * tileSize;
+
+                    ctx.fillRect(px, py, tileSize, tileSize);
+                }
+            }
+        }
+    }
+
+    // --- MAP ACTUELLE ---
+    ctx.strokeStyle = "red";
+    ctx.lineWidth = 2;
+
+    ctx.strokeRect(
+        currentMapX * MAP_WIDTH * tileSize,
+        currentMapY * MAP_HEIGHT * tileSize,
+        MAP_WIDTH * tileSize,
+        MAP_HEIGHT * tileSize
+    );
+
+    // --- AUTRES JOUEURS ---
+    ctx.fillStyle = "#ff0000";
+    for (const id in remotePlayers) {
+        const rp = remotePlayers[id];
+        const px = (rp.mapX * MAP_WIDTH + rp.x) * tileSize;
+        const py = (rp.mapY * MAP_HEIGHT + rp.y) * tileSize;
+        ctx.fillRect(px, py, tileSize, tileSize);
+    }
+
+    // --- TOI ---
+    ctx.fillStyle = "#ffff00";
+    const px = (currentMapX * MAP_WIDTH + player.x) * tileSize;
+    const py = (currentMapY * MAP_HEIGHT + player.y) * tileSize;
+    ctx.fillRect(px, py, tileSize, tileSize);
+}
+
+
+
+setInterval(() => {
+    drawMinimap();
+}, 500);
 /* ------------------------------
    RETURN
 ------------------------------ */
@@ -1215,7 +1598,7 @@ async function leaveInstance() {
 function connectWebSocket() {
     if (ws) ws.close();
 
-    ws = new WebSocket("ws://"+URL_BASE+":3000/ws/instances");
+    ws = new WebSocket("ws://" + URL_BASE + ":3000/ws/instances");
 }
 
 showLogin();
