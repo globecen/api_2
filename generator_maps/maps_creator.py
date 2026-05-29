@@ -10,10 +10,10 @@ TILE = 32
 TILE_COLORS = {
     0: "#d0d0d0",  # sol
     1: "#555555",  # rocher
-    2: "#ff0000",  # pastille haut
-    3: "#ff0000",  # pastille bas
-    4: "#ff0000",  # pastille gauche
-    5: "#ff0000",  # pastille droite
+    2: "#ffff00",  # pastille haut
+    3: "#ffff00",  # pastille bas
+    4: "#ffff00",  # pastille gauche
+    5: "#ffff00",  # pastille droite
     6: "#0066ff",  # eau
     7: "#009900",  # arbre
     8: "#e0c068",  # sable
