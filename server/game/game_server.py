@@ -5,10 +5,10 @@ from fastapi.middleware.cors import CORSMiddleware
 import requests, json
 import redis
 import os
-from .init_game_db import init_game_db
-from .GameDatabase import GameDatabase
-from .anti_cheat import AntiCheat
-from .settings import AUTH_URL, URL_REDIS
+from init_game_db import init_game_db
+from GameDatabase import GameDatabase
+from anti_cheat import AntiCheat
+from settings import AUTH_URL, URL_REDIS
 import asyncio
 
 print("ENV =", os.getenv("ENV"))
