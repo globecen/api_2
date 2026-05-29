@@ -30,39 +30,31 @@ def mulberry32(seed):
     return rand
 
 # ----------------------------
-# BIOME SELECTION
+# BIOME SELECTION (réaliste)
 # ----------------------------
 def get_biome(map_x, map_y):
-    """
-    Détermine le biome en fonction de la position.
-    Tu peux changer les règles comme tu veux.
-    """
 
-    # Zone centrale = plaine
-    if abs(map_x) <= 3 and abs(map_y) <= 3:
+    dist = max(abs(map_x), abs(map_y))
+
+    # Centre = plaine
+    if dist <= 4:
         return "plaine"
 
-    # Nord = neige
-    if map_y > 6:
-        return "neige"
+    # Milieu = forêt / montagne
+    if dist <= 8:
+        if map_x < 0:
+            return "foret"
+        else:
+            return "montagne"
 
-    # Sud = désert
-    if map_y < -6:
+    # Extrémités = eau / neige / désert
+    if map_y > 0:
+        return "neige"
+    if map_y < 0:
         return "desert"
 
-    # Ouest = forêt
-    if map_x < -6:
-        return "foret"
+    return "lac"
 
-    # Est = montagne
-    if map_x > 6:
-        return "montagne"
-
-    # Zone intermédiaire = lac
-    if abs(map_x) < 6 and abs(map_y) < 6:
-        return "lac"
-
-    return "plaine"
 
 # ----------------------------
 # GENERATE ONE MAP
@@ -82,54 +74,64 @@ def generate_map(map_x, map_y, neighbors):
         "right": (WIDTH - 1, HEIGHT // 2)
     }
 
+    # Couloirs traversables complets
+    corridor = set()
+
+    # Vertical complet
+    for y in range(HEIGHT):
+        corridor.add((WIDTH // 2, y))
+
+    # Horizontal complet
+    for x in range(WIDTH):
+        corridor.add((x, HEIGHT // 2))
+
     for y in range(HEIGHT):
         row = []
         for x in range(WIDTH):
 
-            # Case réservée → sol
-            if (x, y) in reserved.values():
+            # Pastilles + couloirs = sol obligatoire
+            if (x, y) in reserved.values() or (x, y) in corridor:
                 row.append(0)
                 continue
 
             r = rand()
 
             # ----------------------------
-            # BIOME RULES
+            # BIOME RULES (eau réduite)
             # ----------------------------
-
             if biome == "plaine":
-                if r < 0.05: tile = 6  # eau
-                elif r < 0.15: tile = 7  # arbre
-                elif r < 0.20: tile = 1  # rocher
+                if r < 0.01: tile = 6
+                elif r < 0.06: tile = 7
+                elif r < 0.09: tile = 1
                 else: tile = 0
 
             elif biome == "foret":
-                if r < 0.02: tile = 6
-                elif r < 0.50: tile = 7
-                elif r < 0.60: tile = 1
+                if r < 0.01: tile = 6
+                elif r < 0.40: tile = 7
+                elif r < 0.50: tile = 1
                 else: tile = 0
 
             elif biome == "montagne":
-                if r < 0.02: tile = 6
+                if r < 0.01: tile = 6
                 elif r < 0.10: tile = 7
                 elif r < 0.60: tile = 1
                 else: tile = 0
 
             elif biome == "lac":
-                if r < 0.60: tile = 6
-                elif r < 0.70: tile = 7
+                if r < 0.80: tile = 6
+                elif r < 0.85: tile = 7
                 else: tile = 0
 
             elif biome == "desert":
-                if r < 0.01: tile = 6
-                elif r < 0.03: tile = 7
-                elif r < 0.05: tile = 1
+                if r < 0.005: tile = 6
+                elif r < 0.02: tile = 7
+                elif r < 0.03: tile = 1
                 else: tile = 0
 
             elif biome == "neige":
-                if r < 0.05: tile = 6
-                elif r < 0.20: tile = 7
-                elif r < 0.30: tile = 1
+                if r < 0.02: tile = 6
+                elif r < 0.10: tile = 7
+                elif r < 0.20: tile = 1
                 else: tile = 0
 
             row.append(tile)
@@ -162,6 +164,7 @@ def generate_map(map_x, map_y, neighbors):
         "tiles": tiles
     }
 
+
 # ----------------------------
 # SAVE MAP
 # ----------------------------
@@ -171,6 +174,7 @@ def save_map(map_data):
     with open(path, "w") as f:
         json.dump(map_data, f, indent=2)
     print(f"✔ Map générée : {path}")
+
 
 # ----------------------------
 # PREVIEW VISUELLE
@@ -239,6 +243,7 @@ def generate_preview(all_maps):
     img.save("output_maps/preview.png")
     print("✔ Aperçu généré avec Aggdraw : output_maps/preview.png")
 
+
 # ----------------------------
 # MAIN
 # ----------------------------
@@ -260,7 +265,8 @@ def main():
 
     generate_preview(all_maps)
 
-    print("\n✔ 529 maps générées + biomes + pastilles propres")
+    print("\n✔ 529 maps générées + biomes réalistes + chemins traversables")
+
 
 if __name__ == "__main__":
     main()
