@@ -18,8 +18,9 @@ let saveTimeout = null;
 const MAPS = {};
 const WORLD_WIDTH = 3;   // nombre de maps en X
 const WORLD_HEIGHT = 3;  // nombre de maps en Y
-
-
+/* TYPES : 0 = ground 1 = wall 2 = water 3 = tree */
+const minimap = document.getElementById("minimap");
+const miniCtx = minimap.getContext("2d");
 const TILE_SIZE = 32;
 
 let currentMapX = 0;
@@ -676,23 +677,36 @@ async function loadMapFile(mapX, mapY) {
     return data;
 }
 
-
 async function loadMapChunk() {
+
     const key = `${currentMapX}_${currentMapY}`;
 
     const mapData = await loadMapFile(currentMapX, currentMapY);
 
     if (!mapData) {
-        console.warn("⚠ Impossible de charger la map :", currentMapX, currentMapY);
+
+        console.warn(
+            "Impossible de charger la map :",
+            currentMapX,
+            currentMapY
+        );
+
         return false;
     }
 
-    currentMapData = mapData.tiles; // 🔥 obligatoire
+    currentMapData = mapData.tiles;
+
+    drawMinimap(
+        currentMapData,
+        player.tileX,
+        player.tileY
+    );
+
+    document.getElementById("minimapCoords").textContent =
+        `X: ${player.tileX} | Y: ${player.tileY} | Map: ${currentMapX},${currentMapY}`;
 
     return true;
 }
-
-
 
 
 
@@ -797,7 +811,21 @@ async function checkMapTransition() {
     return false;
 }
 
+function openChatWebSocket(instanceId) {
+    if (chatWS) chatWS.close();
 
+    chatWS = new WebSocket(`ws://` + URL_BASE + `:3000/ws/chat/${instanceId}`);
+
+    const chatBox = document.getElementById("chatBox");
+    chatBox.innerHTML = "";
+
+    chatWS.onmessage = (event) => {
+        const div = document.createElement("div");
+        div.textContent = event.data;
+        chatBox.appendChild(div);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    };
+}
 
 async function initGame() {
     if (!selectedCharacter || !currentInstanceId) return;
@@ -1437,21 +1465,7 @@ function cleanupGameUI() {
    CHAT
 ------------------------------ */
 
-function openChatWebSocket(instanceId) {
-    if (chatWS) chatWS.close();
 
-    chatWS = new WebSocket(`ws://` + URL_BASE + `:3000/ws/chat/${instanceId}`);
-
-    const chatBox = document.getElementById("chatBox");
-    chatBox.innerHTML = "";
-
-    chatWS.onmessage = (event) => {
-        const div = document.createElement("div");
-        div.textContent = event.data;
-        chatBox.appendChild(div);
-        chatBox.scrollTop = chatBox.scrollHeight;
-    };
-}
 
 function sendChatMessage() {
     const input = document.getElementById("chatInput");
@@ -1462,71 +1476,86 @@ function sendChatMessage() {
     chatWS.send(msg);
     input.value = "";
 }
-function drawMinimap() {
-    const canvas = document.getElementById("minimap");
-    if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
-    const size = canvas.width;
 
-    const tileSize = size / (WORLD_WIDTH * MAP_WIDTH);
+function drawMinimap(mapTiles, playerTileX, playerTileY) {
 
-    ctx.clearRect(0, 0, size, size);
+    if (!mapTiles || !mapTiles.length) return;
 
-    // --- DESSIN DE TOUTES LES MAPS ---
-    for (let my = 0; my < WORLD_HEIGHT; my++) {
-        for (let mx = 0; mx < WORLD_WIDTH; mx++) {
+    miniCtx.clearRect(0, 0, minimap.width, minimap.height);
 
-            const key = `${mx}_${my}`;
-            const map = MAPS[key];
-            if (!map) continue;
+    const mapHeight = mapTiles.length;
+    const mapWidth = mapTiles[0].length;
 
-            for (let y = 0; y < MAP_HEIGHT; y++) {
-                for (let x = 0; x < MAP_WIDTH; x++) {
+    const scaleX = minimap.width / mapWidth;
+    const scaleY = minimap.height / mapHeight;
 
-                    const tile = map[y]?.[x];
-                    if (tile === undefined) continue;
+    for (let y = 0; y < mapHeight; y++) {
 
-                    if (tile === 0) ctx.fillStyle = "#4CAF50"; // herbe
-                    else if (tile === 1) ctx.fillStyle = "#2196F3"; // eau
-                    else if (tile === 2) ctx.fillStyle = "#616161"; // mur
+        for (let x = 0; x < mapWidth; x++) {
 
-                    const px = (mx * MAP_WIDTH + x) * tileSize;
-                    const py = (my * MAP_HEIGHT + y) * tileSize;
+            const tile = mapTiles[y][x];
 
-                    ctx.fillRect(px, py, tileSize, tileSize);
-                }
+            switch (tile) {
+
+                case 0:
+                    miniCtx.fillStyle = "#6f8f52";
+                    break;
+
+                case 1:
+                    miniCtx.fillStyle = "#4f4a44";
+                    break;
+
+                case 2:
+                    miniCtx.fillStyle = "#3d6ea5";
+                    break;
+
+                case 3:
+                    miniCtx.fillStyle = "#2e5a2e";
+                    break;
+
+                case 9:
+                    miniCtx.fillStyle = "#ffd84d";
+                    break;
+
+                default:
+                    miniCtx.fillStyle = "#000000";
             }
+
+            miniCtx.fillRect(
+                x * scaleX,
+                y * scaleY,
+                Math.ceil(scaleX),
+                Math.ceil(scaleY)
+            );
         }
     }
 
-    // --- MAP ACTUELLE ---
-    ctx.strokeStyle = "red";
-    ctx.lineWidth = 2;
+    miniCtx.fillStyle = "yellow";
 
-    ctx.strokeRect(
-        currentMapX * MAP_WIDTH * tileSize,
-        currentMapY * MAP_HEIGHT * tileSize,
-        MAP_WIDTH * tileSize,
-        MAP_HEIGHT * tileSize
+    miniCtx.fillRect(
+        playerTileX * scaleX,
+        playerTileY * scaleY,
+        Math.max(3, scaleX),
+        Math.max(3, scaleY)
     );
 
-    // --- AUTRES JOUEURS ---
-    ctx.fillStyle = "#ff0000";
-    for (const id in remotePlayers) {
-        const rp = remotePlayers[id];
-        const px = (rp.mapX * MAP_WIDTH + rp.x) * tileSize;
-        const py = (rp.mapY * MAP_HEIGHT + rp.y) * tileSize;
-        ctx.fillRect(px, py, tileSize, tileSize);
-    }
+    miniCtx.globalCompositeOperation = "destination-in";
 
-    // --- TOI ---
-    ctx.fillStyle = "#ffff00";
-    const px = (currentMapX * MAP_WIDTH + player.x) * tileSize;
-    const py = (currentMapY * MAP_HEIGHT + player.y) * tileSize;
-    ctx.fillRect(px, py, tileSize, tileSize);
+    miniCtx.beginPath();
+
+    miniCtx.arc(
+        minimap.width / 2,
+        minimap.height / 2,
+        minimap.width / 2,
+        0,
+        Math.PI * 2
+    );
+
+    miniCtx.fill();
+
+    miniCtx.globalCompositeOperation = "source-over";
 }
-
 
 
 setInterval(() => {

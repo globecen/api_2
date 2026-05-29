@@ -3,7 +3,7 @@ import os
 from PIL import Image
 import aggdraw
 
-WIDTH = 14
+WIDTH = 20
 HEIGHT = 20
 
 # ----------------------------
