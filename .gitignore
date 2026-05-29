@@ -5,3 +5,4 @@ dump.rdb
 __pycache__
 front/maps
 generator_maps/output_maps
+auth.db.wal
