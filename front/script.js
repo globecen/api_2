@@ -1,6 +1,6 @@
 let chatWS = null;
-//const URL_BASE = "85.69.92.4";
-const URL_BASE = "127.0.0.1";
+const URL_BASE = "85.69.92.4";
+//const URL_BASE = "127.0.0.1";
 const AUTH = "http://" + URL_BASE + ":3001";
 const GAME = "http://" + URL_BASE + ":3000";
 let isMapLoading = false;
