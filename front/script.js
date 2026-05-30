@@ -1,6 +1,6 @@
 let chatWS = null;
-const URL_BASE = "85.69.92.4";
-//const URL_BASE = "127.0.0.1";
+//const URL_BASE = "85.69.92.4";
+const URL_BASE = "127.0.0.1";
 const AUTH = "http://" + URL_BASE + ":3001";
 const GAME = "http://" + URL_BASE + ":3000";
 let isMapLoading = false;
@@ -43,27 +43,7 @@ function heuristic(a, b) {
     return Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 }
 
-function getNeighbors(x, y, map) {
-    const dirs = [
-        { x: 1, y: 0 },
-        { x: -1, y: 0 },
-        { x: 0, y: 1 },
-        { x: 0, y: -1 }
-    ];
 
-    const res = [];
-
-    for (const d of dirs) {
-        const nx = x + d.x;
-        const ny = y + d.y;
-
-        if (!map[ny] || map[ny][nx] === 1) continue;
-
-        res.push({ x: nx, y: ny });
-    }
-
-    return res;
-}
 function scheduleSavePosition() {
     clearTimeout(saveTimeout);
 
@@ -71,66 +51,7 @@ function scheduleSavePosition() {
         savePosition();
     }, 200);
 }
-function findPath(start, end, map) {
-    const open = [];
-    const closed = new Set();
 
-    open.push({
-        x: start.x,
-        y: start.y,
-        g: 0,
-        f: 0,
-        parent: null
-    });
-
-    while (open.length > 0) {
-
-        // node avec f le plus bas
-        open.sort((a, b) => a.f - b.f);
-        const current = open.shift();
-
-        if (current.x === end.x && current.y === end.y) {
-            // reconstruction chemin
-            const path = [];
-            let c = current;
-
-            while (c) {
-                path.push({ x: c.x, y: c.y });
-                c = c.parent;
-            }
-
-            return path.reverse();
-        }
-
-        closed.add(getNodeKey(current.x, current.y));
-
-        const neighbors = getNeighbors(current.x, current.y, map);
-
-        for (const n of neighbors) {
-
-            const key = getNodeKey(n.x, n.y);
-            if (closed.has(key)) continue;
-
-            const g = current.g + 1;
-            const h = heuristic(n, end);
-            const f = g + h;
-
-            const existing = open.find(o => o.x === n.x && o.y === n.y);
-
-            if (!existing) {
-                open.push({
-                    x: n.x,
-                    y: n.y,
-                    g,
-                    f,
-                    parent: current
-                });
-            }
-        }
-    }
-
-    return [];
-}
 let path = [];
 let moving = false;
 
@@ -152,7 +73,11 @@ async function moveStep() {
 
     // 🔥 ATTENDRE le changement de carte
     const changed = await checkMapTransition();
-    if (changed) return;
+    if (changed) {
+        moving = false;
+        path = [];
+        return;
+    }
 
     // WebSocket
     if (gameWS && gameWS.readyState === WebSocket.OPEN) {
@@ -487,8 +412,6 @@ function renderMap() {
     const world = document.getElementById("gameWorld");
     world.innerHTML = "";
 
-    const TILE_SIZE = 32;
-
     for (let y = 0; y < tiles.length; y++) {
         for (let x = 0; x < tiles[y].length; x++) {
 
@@ -596,57 +519,194 @@ function updateCamera() {
     world.style.transform = `translate(${offsetX}px, ${offsetY}px)`;
 }
 function updatePlayer() {
+
     const el = document.getElementById("player");
     if (!el) return;
 
-    el.style.left = `${player.x * TILE_SIZE}px`;
-    el.style.top = `${player.y * TILE_SIZE}px`;
+    el.style.left =
+        `${player.x * TILE_SIZE + TILE_SIZE / 2}px`;
+
+    el.style.top =
+        `${player.y * TILE_SIZE + TILE_SIZE}px`;
 
     updateCamera();
 }
 document.addEventListener("click", e => {
 
-    if (gamePanel.style.display === "none") return;
+    if (gamePanel.style.display === "none")
+        return;
 
     const world = document.getElementById("gameWorld");
-    if (!world || !world.contains(e.target)) return;
+
+    if (!world || !world.contains(e.target))
+        return;
 
     const rect = world.getBoundingClientRect();
 
     const target = {
-        x: Math.floor((e.clientX - rect.left) / TILE_SIZE),
-        y: Math.floor((e.clientY - rect.top) / TILE_SIZE)
+        x: Math.floor(
+            (e.clientX - rect.left) / TILE_SIZE
+        ),
+        y: Math.floor(
+            (e.clientY - rect.top) / TILE_SIZE
+        )
     };
 
-    const mapObj = MAPS[`${currentMapX}_${currentMapY}`];
-    if (!mapObj) return;
+    const mapObj =
+        MAPS[`${currentMapX}_${currentMapY}`];
 
-    const map = mapObj.tiles;   // 🔥 la vraie grille 2D
+    if (!mapObj)
+        return;
 
-    // 🔥 Vérification des limites
-    if (
-        target.y < 0 ||
-        target.y >= map.length ||
-        target.x < 0 ||
-        target.x >= map[0].length
-    ) {
-        return; // clic hors map → on ignore
-    }
+    const map = mapObj.tiles;
 
-    // 🔥 Vérification obstacle
-    if (map[target.y][target.x] === 1) return;
+    if (!isWalkable(target.x, target.y, map))
+        return;
 
-    const start = { x: player.x, y: player.y };
+    const start = {
+        x: player.x,
+        y: player.y
+    };
 
     path = findPath(start, target, map);
 
-    if (path.length > 0) {
-        path.shift();
+    if (path.length <= 1)
+        return;
+
+    if (path.length <= 1)
+        return;
+
+    path.shift();
+
+    if (!moving) {
         moving = true;
         moveStep();
     }
 });
+function isWalkable(x, y, map) {
+    if (!map || map[y] === undefined || map[y][x] === undefined) return false;
 
+    const tile = map[y][x];
+
+    return (
+        tile !== 1 &&  // wall
+        tile !== 6 &&  // eau bloquante (si tu veux)
+        tile !== 7     // arbre bloquant
+    );
+}
+function getNeighbors(x, y, map) {
+    const dirs = [
+        { x: 0, y: -1 }, // haut
+        { x: 0, y: 1 },  // bas
+        { x: -1, y: 0 }, // gauche
+        { x: 1, y: 0 }   // droite
+    ];
+
+    const result = [];
+
+    for (const d of dirs) {
+        const nx = x + d.x;
+        const ny = y + d.y;
+
+        if (isWalkable(nx, ny, map)) {
+            result.push({ x: nx, y: ny });
+        }
+    }
+
+    return result;
+}
+function findPath(start, end, map) {
+    if (!isWalkable(start.x, start.y, map)) return [];
+    if (!isWalkable(end.x, end.y, map)) {
+        return [];
+    }
+
+    const open = [];
+    const closed = new Set();
+
+    open.push({
+        x: start.x,
+        y: start.y,
+        g: 0,
+        h: heuristic(start, end),
+        f: heuristic(start, end),
+        parent: null
+    });
+
+    while (open.length > 0) {
+
+        open.sort((a, b) => a.f - b.f);
+
+        const current = open.shift();
+
+        if (
+            current.x === end.x &&
+            current.y === end.y
+        ) {
+
+            const path = [];
+            let node = current;
+
+            while (node) {
+                path.push({
+                    x: node.x,
+                    y: node.y
+                });
+
+                node = node.parent;
+            }
+
+            return path.reverse();
+        }
+
+        closed.add(
+            getNodeKey(current.x, current.y)
+        );
+
+        const neighbors = getNeighbors(
+            current.x,
+            current.y,
+            map
+        );
+
+        for (const n of neighbors) {
+
+            const key = getNodeKey(n.x, n.y);
+
+            if (closed.has(key))
+                continue;
+
+            const g = current.g + 1;
+            const h = heuristic(n, end);
+            const f = g + h;
+
+            const existing = open.find(
+                o => o.x === n.x && o.y === n.y
+            );
+
+            if (!existing) {
+
+                open.push({
+                    x: n.x,
+                    y: n.y,
+                    g,
+                    h,
+                    f,
+                    parent: current
+                });
+
+            } else if (g < existing.g) {
+
+                existing.g = g;
+                existing.h = h;
+                existing.f = f;
+                existing.parent = current;
+            }
+        }
+    }
+
+    return [];
+}
 /* ------------------------------
    PREVIEW
 ------------------------------ */
@@ -1214,12 +1274,6 @@ function syncRemotePlayersList(serverPlayers) {
     });
 }
 
-
-function scheduleSavePosition() {
-    clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(savePosition, 200);
-}
-
 function connectGameWS() {
 
     // fermer ancien socket proprement
@@ -1559,7 +1613,12 @@ function drawMinimap(mapTiles, playerTileX, playerTileY) {
 
 
 setInterval(() => {
-    drawMinimap();
+    const key = `${currentMapX}_${currentMapY}`;
+    const map = MAPS[key]?.tiles;
+
+    if (!map) return;
+
+    drawMinimap(map, player.x, player.y);
 }, 500);
 /* ------------------------------
    RETURN
